@@ -1,0 +1,20 @@
+{
+  "name": "Happy Thai field",
+  "short_name": "Thai Field",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#bfe8f7",
+  "theme_color": "#689f46",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

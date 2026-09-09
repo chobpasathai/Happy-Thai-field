@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Happy Thai field - Post-it Notes</title>
+<!-- PWA Manifest & Theme -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#689f46">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<!-- ใช้ html2canvas สำหรับแปลง DOM เป็นภาพ PNG -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap');
+
+:root{
+  --sky-top:#bfe8f7;
+  --sky-bottom:#eef9e3;
+  --ink:#2c3a26;
+  --sun:#ffd15c;
+  --wood:#a97a4d;
+  --wood-dark:#6b4423;
+  --shadow: 0 8px 0 rgba(44,58,38,0.2);
+}
+
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Nunito',sans-serif;color:var(--ink);}
+
+.app{
+  background:linear-gradient(180deg,var(--sky-top) 0%, var(--sky-bottom) 55%);
+  border-radius:20px;
+  overflow:hidden;
+  position:relative;
+  min-height:720px;
+  padding-bottom:24px;
+}
+
+.sun{
+  position:absolute; top:22px; right:36px;
+  width:64px; height:64px; border-radius:50%;
+  background:var(--sun);
+  box-shadow:0 0 0 8px rgba(255,209,92,0.28);
+}
+.cloud{position:absolute; background:#fff; border-radius:50px; opacity:0.9;}
+.cloud::before,.cloud::after{content:'';position:absolute;background:#fff;border-radius:50%;}
+.cloud1{width:70px;height:26px;top:34px;left:8%;}
+.cloud1::before{width:36px;height:36px;top:-16px;left:8px;}
+.cloud1::after{width:26px;height:26px;top:-10px;left:38px;}
+.cloud2{width:56px;height:22px;top:70px;left:60%;}
+.cloud2::before{width:28px;height:28px;top:-13px;left:6px;}
+.cloud2::after{width:20px;height:20px;top:-8px;left:30px;}
+
+.title-bar{
+  position:relative; z-index:2;
+  padding:18px 26px 6px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+}
+.title-bar h1{
+  font-family:'Baloo 2',sans-serif; font-weight:800; font-size:1.4rem; margin:0;
+  color:#2c4a20;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.mode-toggle{
+  display:flex; background:rgba(255,255,255,0.7); border-radius:999px; padding:4px; gap:2px;
+}
+.mode-toggle button{
+  border:none; padding:8px 16px; border-radius:999px; font-family:'Nunito'; font-weight:700;
+  font-size:0.85rem; cursor:pointer; background:transparent; color:#4a5c3f;
+}
+.mode-toggle button.active{background:var(--ink);color:#fff;}
+
+.snapshot-btn{
+  background:#4a8a3a; color:#fff; border:none; padding:8px 16px; border-radius:999px;
+  font-family:'Nunito'; font-weight:700; font-size:0.85rem; cursor:pointer;
+  box-shadow:0 3px 0 #33611f; display:flex; align-items:center; gap:5px;
+}
+.snapshot-btn:active{transform:translateY(2px); box-shadow:0 1px 0 #33611f;}
+
+.panel{
+  position:relative; z-index:2;
+  max-width:560px; margin:15px auto 0; width:88%;
+  background:#fffaf0; border-radius:16px; padding:18px 22px;
+  box-shadow:var(--shadow);
+  border:3px solid var(--wood-dark);
+}
+.panel h2{font-family:'Baloo 2'; font-size:1.05rem; margin:0 0 10px;}
+.field-row{margin-bottom:10px;}
+.field-row label{display:block; font-weight:700; font-size:0.82rem; margin-bottom:4px; color:#4a5c3f;}
+input[type=text], input[type=file], textarea, select{
+  width:100%; padding:9px 12px; border-radius:10px; border:2px solid #d8dfca;
+  font-family:'Nunito'; font-size:0.95rem; background:#fff; color:var(--ink);
+}
+textarea{resize:vertical; min-height:50px;}
+
+.swatches{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; margin-bottom:8px;}
+.swatch{width:28px; height:28px; border-radius:50%; cursor:pointer; border:3px solid transparent;}
+.swatch.selected{border-color:var(--ink); transform:scale(1.1);}
+
+.primary-btn{
+  background:#4a8a3a; color:#fff; border:none; padding:10px 20px; border-radius:12px;
+  font-family:'Baloo 2'; font-weight:700; font-size:0.95rem; cursor:pointer;
+  box-shadow:0 4px 0 #33611f;
+}
+.primary-btn:active{transform:translateY(2px); box-shadow:0 2px 0 #33611f;}
+.primary-btn:disabled{opacity:0.5; cursor:default;}
+.status-msg{font-size:0.82rem; margin-top:6px; color:#5a6b4e; min-height:1em;}
+
+/* ---------- Field and Signs ---------- */
+.field{
+  position:relative; z-index:1;
+  margin-top:20px;
+  height:640px;
+  background:linear-gradient(180deg,#83bc5c 0%, #689f46 55%, #528134 100%);
+  overflow:hidden;
+}
+.field.placing-mode {
+  cursor: crosshair !important;
+  box-shadow: inset 0 0 0 4px #e0972e;
+}
+.field::before{
+  content:'';
+  position:absolute; inset:0;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.4) 3px, transparent 3px),
+    radial-gradient(circle, rgba(255,255,255,0.25) 2px, transparent 2px);
+  background-size: 80px 60px, 50px 40px;
+  background-position: 10px 20px, 30px 40px;
+  opacity:0.3;
+  pointer-events: none;
+}
+
+.field-sign{
+  position:absolute;
+  background:#fffaf0;
+  border:3px solid var(--wood-dark);
+  border-radius:10px;
+  padding:8px 10px;
+  width:160px;
+  text-align:center;
+  cursor:pointer;
+  box-shadow:var(--shadow);
+  transform:translate(-50%, -50%);
+  z-index:5;
+  transition: transform 0.15s ease;
+}
+.field-sign::after{
+  content:'';
+  position:absolute; bottom:-14px; left:50%; transform:translateX(-50%);
+  width:6px; height:14px; background:var(--wood-dark); border-radius:2px;
+}
+.field-sign .sign-label{font-size:0.55rem; letter-spacing:0.02em; color:#8a7a4f; font-weight:700; text-transform:uppercase;}
+.field-sign .sign-text{font-family:'Baloo 2'; font-weight:700; font-size:0.78rem; margin-top:1px; color:#33421f; word-break:break-word;}
+.field-sign.selected{border-color:#e0972e; box-shadow:0 6px 0 rgba(224,151,46,0.4); transform:translate(-50%, -50%) scale(1.05);}
+.field-sign:hover{transform:translate(-50%, -50%) scale(1.04);}
+
+@keyframes bounceDrop {
+  0% { transform: translate(-50%, -150%) scale(0.8); opacity: 0; }
+  60% { transform: translate(-50%, -40%) scale(1.05); opacity: 1; }
+  80% { transform: translate(-50%, -55%) scale(0.95); }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+.field-sign.bounce-anim {
+  animation: bounceDrop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.post-it-cluster {
+  position: absolute;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 240px;
+  max-height: 240px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  justify-content: center;
+  transform: translateX(-50%);
+  z-index: 4;
+  pointer-events: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+}
+.post-it {
+  background: #fff9b1;
+  border: 1px solid #e2d27c;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  box-shadow: 2px 3px 5px rgba(0,0,0,0.15);
+  max-width: 110px;
+  text-align: center;
+  word-break: break-word;
+  position: relative;
+  pointer-events: auto;
+  animation: popIn 0.3s ease;
+}
+.post-it .author {
+  font-size: 0.55rem;
+  color: #666;
+  border-top: 1px dashed rgba(0,0,0,0.15);
+  margin-top: 2px;
+  padding-top: 1px;
+}
+.post-it .extra-chat {
+  font-size: 0.6rem;
+  color: #333;
+  background: rgba(255,255,255,0.5);
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin-top: 3px;
+  border: 1px dashed rgba(0,0,0,0.1);
+}
+.post-it img {
+  max-width: 100%;
+  max-height: 70px;
+  border-radius: 3px;
+  display: block;
+  margin: 4px auto 0;
+  object-fit: cover;
+}
+.post-it .like-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin: 3px auto 0;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.6);
+  color: #d93838;
+  font-weight: 700;
+  transition: transform 0.1s;
+}
+.post-it .like-btn:hover {
+  transform: scale(1.1);
+  background: rgba(255,255,255,0.9);
+}
+.post-it .delete-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #b00;
+}
+.post-it .delete-btn:hover {
+  background: #ffcccc;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes handStamp {
+  0% { transform: translate(-50%, -120%) scale(1.4) rotate(-15deg); opacity: 0; }
+  50% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+  70% { transform: translate(-50%, -50%) scale(1.05) rotate(5deg); opacity: 1; }
+  100% { transform: translate(-50%, -120%) scale(1.2) rotate(0deg); opacity: 0; }
+}
+.hand-stamp-effect {
+  position: absolute;
+  z-index: 10;
+  font-size: 3rem;
+  transform: translate(-50%, -50%);
+  animation: handStamp 0.8s ease-in-out forwards;
+  pointer-events: none;
+}
+
+.empty-field-msg{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,0.9); font-family:'Baloo 2'; font-weight:700; font-size:1rem;
+  text-align:center; padding:20px; pointer-events:none;
+}
+
+.selected-question{
+  background:#f0ead8; border-radius:10px; padding:8px 10px; font-size:0.85rem; color:#4a5c3f;
+}
+.selected-question.empty{font-style:italic; color:#8a9a80;}
+
+.option-buttons{display:flex; flex-direction:column; gap:8px;}
+.option-btn{
+  background:#fff; border:2px solid #d8dfca; border-radius:10px; padding:9px 12px;
+  font-family:'Nunito'; font-weight:700; font-size:0.9rem; text-align:left; cursor:pointer; color:var(--ink);
+}
+.option-btn:hover{border-color:#4a8a3a; background:#f3f9ef;}
+.option-btn.selected{border-color:#4a8a3a; background:#e2f0d9;}
+
+.footer-note{
+  text-align:center; font-size:0.75rem; color:#5c6a52; margin-top:10px; padding:0 20px;
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <div class="sun"></div>
+  <div class="cloud cloud1"></div>
+  <div class="cloud cloud2"></div>
+
+  <div class="title-bar">
+    <h1>🌾 Happy Thai field</h1>
+    <div class="header-actions">
+      <button class="snapshot-btn" id="snapshotBtn" type="button">📸 Save Snapshot</button>
+      <div class="mode-toggle">
+        <button id="btnMember" class="active">Member</button>
+        <button id="btnCreator">Creator</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="creatorPanel" style="display:none;">
+    <h2>✨ Plant a New Question Sign!</h2>
+    <div class="field-row">
+      <label for="qInput">Your Fun Question</label>
+      <textarea id="qInput" placeholder="What's on your mind today? Let's ask everyone!"></textarea>
+    </div>
+    <div class="field-row">
+      <label for="optionsInput">Awesome Choices (one per line — optional)</label>
+      <textarea id="optionsInput" placeholder="Option 1&#10;Option 2"></textarea>
+    </div>
+    <button class="primary-btn" id="placeSignBtn" type="button">🌱 Plant Sign on the Meadow</button>
+    <div class="status-msg" id="creatorStatus">Type your question, click the button, then tap anywhere on the green field below!</div>
+  </div>
+
+  <div class="panel" id="memberPanel">
+    <h2>🎯 Drop Your Colorful Post-it!</h2>
+    <div class="field-row">
+      <label for="nameInput">Your Cool Nickname</label>
+      <input type="text" id="nameInput" maxlength="16" placeholder="Enter your name">
+    </div>
+    <div class="field-row">
+      <label>Target Question Sign</label>
+      <div class="selected-question empty" id="selectedQuestionDisplay">👆 Click any wooden sign on the meadow first!</div>
+    </div>
+    <div class="field-row" id="answerOptionsRow" style="display:none;">
+      <label>Pick Your Answer</label>
+      <div class="option-buttons" id="answerOptions"></div>
+    </div>
+    <div class="field-row" id="freeTextRow">
+      <label for="answerInput">Your Answer</label>
+      <textarea id="answerInput" placeholder="Type your brilliant answer here..."></textarea>
+    </div>
+    <div class="field-row">
+      <label>Pick Your Post-it Vibe (Color)</label>
+      <div class="swatches" id="colorSwatches"></div>
+    </div>
+    <div class="field-row">
+      <label for="imageInput">Attach PNG Image (Food, etc. — Optional)</label>
+      <input type="file" id="imageInput" accept="image/png, image/jpeg">
+    </div>
+    <div class="field-row">
+      <label for="extraChatInput">Secret Vibe / Extra Chat (Optional)</label>
+      <input type="text" id="extraChatInput" maxlength="60" placeholder="Drop some extra thoughts or jokes here...">
+    </div>
+    <button class="primary-btn" id="dropBtn" type="button">📌 Stamp Post-it to Meadow!</button>
+    <div class="status-msg" id="memberStatus"></div>
+  </div>
+
+  <div class="field" id="field"></div>
+  <div class="footer-note">🌟 Happy Thai field: Explore around, click any question sign, and leave your colorful mark with friends!</div>
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+(function(){
+  const POST_IT_COLORS = ['#fff9b1', '#ffcac8', '#c7f9cc', '#cbf3f0', '#fde2e4', '#e2ece9', '#ffd1dc', '#dcedc1'];
+  let selectedColor = null;
+  let selectedChoice = '';
+  let currentRenderedQId = null;
+
+  const todayKey = () => {
+    const now = new Date();
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const thaiTime = new Date(utcTime + (7 * 3600000));
+    
+    if (thaiTime.getHours() < 6) {
+      thaiTime.setDate(thaiTime.getDate() - 1);
+    }
+    
+    return 'happy-thai-field-v2:' + thaiTime.toISOString().slice(0, 10);
+  };
+
+  async function storeGet(key, shared){
+    try {
+      const res = await window.storage.get(key, shared);
+      return res;
+    } catch(err){
+      return null;
+    }
+  }
+
+  async function storeSet(key, value, shared){
+    try {
+      const res = await window.storage.set(key, value, shared);
+      return res;
+    } catch(err){
+      return null;
+    }
+  }
+
+  let state = { questions:[], entries:[] };
+  let myChar = { name:'' };
+  let mode = 'member';
+  let selectedQuestionId = null;
+  let isPlacingMode = false;
+  let pendingQuestionData = null;
+
+  const $ = id => document.getElementById(id);
+
+  function renderColorSwatches(){
+    const container = $('colorSwatches');
+    container.innerHTML = '';
+    POST_IT_COLORS.forEach(color => {
+      const swatch = document.createElement('div');
+      swatch.className = 'swatch' + (color === selectedColor ? ' selected' : '');
+      swatch.style.background = color;
+      swatch.onclick = () => {
+        selectedColor = color;
+        renderColorSwatches();
+      };
+      container.appendChild(swatch);
+    });
+  }
+
+  function updateSelectedQuestionDisplay(){
+    const el = $('selectedQuestionDisplay');
+    const q = state.questions.find(q=>q.id===selectedQuestionId);
+    if(q){
+      el.textContent = q.text;
+      el.classList.remove('empty');
+    } else {
+      el.textContent = "👆 Click any wooden sign on the meadow first!";
+      el.classList.add('empty');
+      selectedQuestionId = null;
+    }
+    renderAnswerUI();
+  }
+
+  function renderAnswerUI(){
+    const q = state.questions.find(q=>q.id===selectedQuestionId);
+    const optsRow = $('answerOptionsRow');
+    const freeRow = $('freeTextRow');
+    const optsWrap = $('answerOptions');
+
+    if(!q || !q.options || !q.options.length){
+      optsRow.style.display = 'none';
+      freeRow.style.display = 'block';
+      currentRenderedQId = null;
+      return;
+    }
+
+    optsRow.style.display = 'block';
+    freeRow.style.display = 'none';
+
+    if(currentRenderedQId !== selectedQuestionId){
+      currentRenderedQId = selectedQuestionId;
+      optsWrap.innerHTML = '';
+      q.options.forEach(opt=>{
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'option-btn' + (selectedChoice === opt ? ' selected' : '');
+        b.textContent = opt;
+        b.onclick = ()=>{
+          selectedChoice = opt;
+          Array.from(optsWrap.children).forEach(btn => btn.classList.remove('selected'));
+          b.classList.add('selected');
+        };
+        optsWrap.appendChild(b);
+      });
+    } else {
+      Array.from(optsWrap.children).forEach(btn => {
+        if(btn.textContent === selectedChoice) {
+          btn.classList.add('selected');
+        } else {
+          btn.classList.remove('selected');
+        }
+      });
+    }
+  }
+
+  async function submitAnswer(){
+    const statusEl = $('memberStatus');
+    const name = $('nameInput').value.trim();
+    const q = state.questions.find(q=>q.id===selectedQuestionId);
+    
+    let answerVal = '';
+    if(q && q.options && q.options.length){
+      answerVal = selectedChoice;
+    } else {
+      answerVal = $('answerInput').value.trim();
+    }
+    const extraChat = $('extraChatInput').value.trim();
+    const imageInput = $('imageInput');
+
+    if(!selectedQuestionId){ statusEl.textContent = '⚠️ Oops! Pick a question sign on the meadow first!'; return; }
+    if(!name){ statusEl.textContent = '⚠️ Hey there, don\'t forget to type your nickname!'; return; }
+    if(!selectedColor){ statusEl.textContent = '⚠️ Pick your favorite Post-it color vibe!'; return; }
+    if(q && q.options && q.options.length && !selectedChoice){ statusEl.textContent = '⚠️ Please select one of the awesome choices!'; return; }
+    if((!q || !q.options || !q.options.length) && !answerVal){ statusEl.textContent = '⚠️ Write down your brilliant answer!'; return; }
+
+    myChar.name = name;
+    await saveMyName();
+
+    statusEl.textContent = '✨ Syncing & Stamping your Post-it...';
+    $('dropBtn').disabled = true;
+
+    let imageData = '';
+    if(imageInput.files && imageInput.files[0]){
+      imageData = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(imageInput.files[0]);
+      });
+    }
+
+    await loadFieldSilent();
+
+    const targetQ = state.questions.find(q => q.id === selectedQuestionId);
+    if (targetQ && targetQ.pos) {
+      await playHandStampAnimation(targetQ.pos);
+    }
+
+    const randomRotation = (Math.random() * 24 - 12).toFixed(1);
+
+    state.entries.push({
+      id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+      questionId: selectedQuestionId,
+      name: name,
+      answer: answerVal,
+      extraChat: extraChat,
+      image: imageData,
+      color: selectedColor,
+      rotation: randomRotation,
+      likes: 0,
+      ts: Date.now()
+    });
+
+    const ok = await saveField();
+    statusEl.textContent = ok ? '🎉 Yay! Post-it successfully stamped & shared!' : '❌ Save failed. Please check network and try again!';
+    if($('answerInput')) $('answerInput').value = '';
+    $('extraChatInput').value = '';
+    imageInput.value = '';
+    selectedChoice = '';
+    currentRenderedQId = null;
+    $('dropBtn').disabled = false;
+    renderField();
+    renderAnswerUI();
+  }
+
+  function mergeStates(latest){
+    const existingQIds = new Set(state.questions.map(q => q.id));
+    latest.questions.forEach(q => {
+      if(!existingQIds.has(q.id)) {
+        state.questions.push(q);
+      }
+    });
+
+    const existingEIds = new Set(state.entries.map(e => e.id));
+    latest.entries.forEach(e => {
+      if(!existingEIds.has(e.id)) {
+        state.entries.push(e);
+      }
+    });
+  }
+
+  function playHandStampAnimation(targetPos) {
+    return new Promise((resolve) => {
+      const field = $('field');
+      const handEl = document.createElement('div');
+      handEl.className = 'hand-stamp-effect';
+      handEl.textContent = '✋';
+      
+      handEl.style.left = targetPos.x + '%';
+      handEl.style.top = (targetPos.y + 4) + '%';
+      field.appendChild(handEl);
+
+      setTimeout(() => {
+        handEl.remove();
+        resolve();
+      }, 800);
+    });
+  }
+
+  async function handleLike(entryId, e) {
+    e.stopPropagation();
+    await loadFieldSilent();
+
+    const entry = state.entries.find(en => en.id === entryId);
+    if(entry){
+      entry.likes = (entry.likes || 0) + 1;
+      await saveField();
+      renderField();
+    }
+  }
+
+  async function handleDeleteEntry(entryId, e) {
+    e.stopPropagation();
+    await loadFieldSilent();
+
+    state.entries = state.entries.filter(en => en.id !== entryId);
+    await saveField();
+    renderField();
+  }
+
+  function renderField(){
+    const field = $('field');
+    field.innerHTML = '';
+
+    if(!state.questions.length){
+      const msg = document.createElement('div');
+      msg.className='empty-field-msg';
+      msg.textContent = '🌾 The field is totally quiet — Switch to Creator mode to plant the very first question sign!';
+      field.appendChild(msg);
+      return;
+    }
+
+    state.questions.forEach(q=>{
+      const pos = q.pos || { x: 50, y: 50 };
+
+      const sign = document.createElement('div');
+      sign.className = 'field-sign' + (q.id===selectedQuestionId ? ' selected' : '') + (q._justCreated ? ' bounce-anim' : '');
+      if(q._justCreated) delete q._justCreated;
+
+      sign.style.left = pos.x + '%';
+      sign.style.top = pos.y + '%';
+      sign.innerHTML = '<div class="sign-label">Question</div><div class="sign-text"></div>';
+      sign.querySelector('.sign-text').textContent = q.text;
+      sign.onclick = (e)=>{
+        e.stopPropagation();
+        selectedQuestionId = q.id;
+        updateSelectedQuestionDisplay();
+        renderField();
+      };
+      field.appendChild(sign);
+
+      const answers = state.entries.filter(e => e.questionId === q.id);
+      if(answers.length > 0){
+        const cluster = document.createElement('div');
+        cluster.className = 'post-it-cluster';
+        cluster.style.left = pos.x + '%';
+        cluster.style.top = (pos.y + 10) + '%';
+        cluster.onclick = (e) => e.stopPropagation();
+
+        answers.forEach(ans=>{
+          const pi = document.createElement('div');
+          pi.className = 'post-it';
+          pi.style.background = ans.color || '#fff9b1';
+          pi.style.transform = `rotate(${ans.rotation || 0}deg)`;
+          
+          const likesCount = ans.likes || 0;
+          let contentHtml = '';
+          
+          if(ans.name === myChar.name && myChar.name){
+            contentHtml += `<button class="delete-btn" type="button" title="Delete">🗑️</button>`;
+          }
+
+          contentHtml += `<div>${ans.answer}</div>`;
+          if(ans.image){
+            contentHtml += `<img src="${ans.image}" alt="attached image" />`;
+          }
+          if(ans.extraChat){
+            contentHtml += `<div class="extra-chat">💬 ${ans.extraChat}</div>`;
+          }
+          contentHtml += `<div class="author">${ans.name}</div>`;
+          contentHtml += `<button class="like-btn" type="button">❤️ ${likesCount}</button>`;
+
+          pi.innerHTML = contentHtml;
+          
+          const delBtn = pi.querySelector('.delete-btn');
+          if(delBtn){
+            delBtn.onclick = (e) => handleDeleteEntry(ans.id, e);
+          }
+
+          pi.querySelector('.like-btn').onclick = (e) => handleLike(ans.id, e);
+          cluster.appendChild(pi);
+        });
+        field.appendChild(cluster);
+      }
+    });
+  }
+
+  async function loadFieldSilent(){
+    try{
+      const res = await storeGet(todayKey(), true);
+      if(res && res.value){
+        const loaded = JSON.parse(res.value);
+        if(loaded && loaded.questions){
+          mergeStates(loaded);
+        }
+      }
+    }catch(err){}
+  }
+
+  async function loadField(){
+    await loadFieldSilent();
+    updateSelectedQuestionDisplay();
+    renderField();
+  }
+
+  async function saveField(){
+    try{
+      const res = await storeSet(todayKey(), JSON.stringify(state), true);
+      return res !== null;
+    }catch(err){ return false; }
+  }
+
+  async function loadMyName(){
+    try{
+      const res = await storeGet('myname', false);
+      if(res && res.value){
+        const data = JSON.parse(res.value);
+        myChar.name = data.name || '';
+      }
+    }catch(err){}
+    $('nameInput').value = myChar.name || '';
+  }
+
+  async function saveMyName(){
+    try{ await storeSet('myname', JSON.stringify(myChar), false); }catch(err){}
+  }
+
+  function setMode(m){
+    mode = m;
+    isPlacingMode = false;
+    $('field').classList.remove('placing-mode');
+    $('btnMember').classList.toggle('active', m==='member');
+    $('btnCreator').classList.toggle('active', m==='creator');
+    $('creatorPanel').style.display = m==='creator' ? 'block' : 'none';
+    $('memberPanel').style.display = m==='member' ? 'block' : 'none';
+  }
+
+  $('btnMember').onclick = ()=> setMode('member');
+  $('btnCreator').onclick = ()=> setMode('creator');
+
+  $('snapshotBtn').onclick = ()=>{
+    const fieldArea = $('field');
+    html2canvas(fieldArea, { useCORS: true }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = 'happy-thai-field-snapshot.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  };
+
+  $('placeSignBtn').onclick = ()=>{
+    const q = $('qInput').value.trim();
+    const statusEl = $('creatorStatus');
+    if(!q){ statusEl.textContent = '⚠️ Please type an awesome question first!'; return; }
+
+    const options = $('optionsInput').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    pendingQuestionData = { text: q, options: options };
+
+    isPlacingMode = true;
+    $('field').classList.add('placing-mode');
+    statusEl.textContent = '✨ Placing mode is ON! Now scroll down and click anywhere on the green field.';
+  };
+
+  $('field').addEventListener('click', async (e)=>{
+    if(!isPlacingMode || !pendingQuestionData) return;
+
+    const rect = $('field').getBoundingClientRect();
+    const x = Math.max(15, Math.min(85, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(15, Math.min(80, ((e.clientY - rect.top) / rect.height) * 100));
+
+    await loadFieldSilent();
+
+    const newQ = {
+      id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+      text: pendingQuestionData.text,
+      options: pendingQuestionData.options,
+      pos: { x, y },
+      ts: Date.now(),
+      _justCreated: true
+    };
+
+    state.questions.push(newQ);
+    const ok = await saveField();
+
+    isPlacingMode = false;
+    $('field').classList.remove('placing-mode');
+    $('qInput').value = '';
+    $('optionsInput').value = '';
+    $('creatorStatus').textContent = ok ? '🎉 Boom! Question sign successfully shared!' : '❌ Save failed, please check network!';
+
+    selectedQuestionId = newQ.id;
+    updateSelectedQuestionDisplay();
+    renderField();
+  });
+
+  $('dropBtn').onclick = async ()=>{
+    await submitAnswer();
+  };
+
+  async function refreshLoop(){
+    await loadField();
+    setTimeout(refreshLoop, 3000);
+  }
+
+  (async function init(){
+    renderColorSwatches();
+    await loadMyName();
+    await loadField();
+    setMode('member');
+    refreshLoop();
+  })();
+})();
+</script>
+</body>
+</html>
