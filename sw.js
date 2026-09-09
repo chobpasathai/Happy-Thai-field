@@ -1,4 +1,4 @@
-const CACHE_NAME = 'happy-thai-field-v2';
+const CACHE_NAME = 'happy-thai-field-v3';
 const urlsToCache = [
   './index.html',
   './manifest.json'
@@ -12,10 +12,7 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
-  event.respondThem ? event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
-  ) : event.respondWith(
+  event.respondWith(
     caches.match(event.request)
       .then(response => response || fetch(event.request))
   );
