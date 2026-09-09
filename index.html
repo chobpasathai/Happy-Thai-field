@@ -11,6 +11,10 @@
 
 <!-- ใช้ html2canvas สำหรับแปลง DOM เป็นภาพ PNG -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Firebase SDKs สำหรับซิงค์ข้อมูลแบบเรียลไทม์ -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap');
 
@@ -387,6 +391,19 @@ if ('serviceWorker' in navigator) {
 }
 
 (function(){
+  // ตั้งค่า Firebase Database กลาง เพื่อให้ทุกคนซิงค์ข้อมูลร่วมกันได้ทันที
+  const firebaseConfig = {
+    databaseURL: "https://happy-thai-field-default-rtdb.asia-southeast1.firebasedatabase.app/"
+  };
+  
+  let db = null;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  } catch(e) {
+    console.error("Firebase init error", e);
+  }
+
   const POST_IT_COLORS = ['#fff9b1', '#ffcac8', '#c7f9cc', '#cbf3f0', '#fde2e4', '#e2ece9', '#ffd1dc', '#dcedc1'];
   let selectedColor = null;
   let selectedChoice = '';
@@ -401,26 +418,8 @@ if ('serviceWorker' in navigator) {
       thaiTime.setDate(thaiTime.getDate() - 1);
     }
     
-    return 'happy-thai-field-v2:' + thaiTime.toISOString().slice(0, 10);
+    return 'field_v2_' + thaiTime.toISOString().slice(0, 10).replace(/-/g, '_');
   };
-
-  async function storeGet(key, shared){
-    try {
-      const res = await window.storage.get(key, shared);
-      return res;
-    } catch(err){
-      return null;
-    }
-  }
-
-  async function storeSet(key, value, shared){
-    try {
-      const res = await window.storage.set(key, value, shared);
-      return res;
-    } catch(err){
-      return null;
-    }
-  }
 
   let state = { questions:[], entries:[] };
   let myChar = { name:'' };
@@ -523,7 +522,7 @@ if ('serviceWorker' in navigator) {
     if((!q || !q.options || !q.options.length) && !answerVal){ statusEl.textContent = '⚠️ Write down your brilliant answer!'; return; }
 
     myChar.name = name;
-    await saveMyName();
+    localStorage.setItem('happy_thai_name', name);
 
     statusEl.textContent = '✨ Syncing & Stamping your Post-it...';
     $('dropBtn').disabled = true;
@@ -537,8 +536,6 @@ if ('serviceWorker' in navigator) {
       });
     }
 
-    await loadFieldSilent();
-
     const targetQ = state.questions.find(q => q.id === selectedQuestionId);
     if (targetQ && targetQ.pos) {
       await playHandStampAnimation(targetQ.pos);
@@ -546,8 +543,8 @@ if ('serviceWorker' in navigator) {
 
     const randomRotation = (Math.random() * 24 - 12).toFixed(1);
 
-    state.entries.push({
-      id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+    const newEntry = {
+      id: 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
       questionId: selectedQuestionId,
       name: name,
       answer: answerVal,
@@ -557,9 +554,12 @@ if ('serviceWorker' in navigator) {
       rotation: randomRotation,
       likes: 0,
       ts: Date.now()
-    });
+    };
 
-    const ok = await saveField();
+    if(!state.entries) state.entries = [];
+    state.entries.push(newEntry);
+
+    const ok = await saveFieldToCloud();
     statusEl.textContent = ok ? '🎉 Yay! Post-it successfully stamped & shared!' : '❌ Save failed. Please check network and try again!';
     if($('answerInput')) $('answerInput').value = '';
     $('extraChatInput').value = '';
@@ -569,22 +569,6 @@ if ('serviceWorker' in navigator) {
     $('dropBtn').disabled = false;
     renderField();
     renderAnswerUI();
-  }
-
-  function mergeStates(latest){
-    const existingQIds = new Set(state.questions.map(q => q.id));
-    latest.questions.forEach(q => {
-      if(!existingQIds.has(q.id)) {
-        state.questions.push(q);
-      }
-    });
-
-    const existingEIds = new Set(state.entries.map(e => e.id));
-    latest.entries.forEach(e => {
-      if(!existingEIds.has(e.id)) {
-        state.entries.push(e);
-      }
-    });
   }
 
   function playHandStampAnimation(targetPos) {
@@ -607,22 +591,18 @@ if ('serviceWorker' in navigator) {
 
   async function handleLike(entryId, e) {
     e.stopPropagation();
-    await loadFieldSilent();
-
     const entry = state.entries.find(en => en.id === entryId);
     if(entry){
       entry.likes = (entry.likes || 0) + 1;
-      await saveField();
+      await saveFieldToCloud();
       renderField();
     }
   }
 
   async function handleDeleteEntry(entryId, e) {
     e.stopPropagation();
-    await loadFieldSilent();
-
-    state.entries = state.entries.filter(en => en.id !== entryId);
-    await saveField();
+    state.entries = (state.entries || []).filter(en => en.id !== entryId);
+    await saveFieldToCloud();
     renderField();
   }
 
@@ -630,7 +610,7 @@ if ('serviceWorker' in navigator) {
     const field = $('field');
     field.innerHTML = '';
 
-    if(!state.questions.length){
+    if(!state.questions || !state.questions.length){
       const msg = document.createElement('div');
       msg.className='empty-field-msg';
       msg.textContent = '🌾 The field is totally quiet — Switch to Creator mode to plant the very first question sign!';
@@ -657,7 +637,7 @@ if ('serviceWorker' in navigator) {
       };
       field.appendChild(sign);
 
-      const answers = state.entries.filter(e => e.questionId === q.id);
+      const answers = (state.entries || []).filter(e => e.questionId === q.id);
       if(answers.length > 0){
         const cluster = document.createElement('div');
         cluster.className = 'post-it-cluster';
@@ -703,44 +683,40 @@ if ('serviceWorker' in navigator) {
     });
   }
 
-  async function loadFieldSilent(){
-    try{
-      const res = await storeGet(todayKey(), true);
-      if(res && res.value){
-        const loaded = JSON.parse(res.value);
-        if(loaded && loaded.questions){
-          mergeStates(loaded);
-        }
+  async function saveFieldToCloud(){
+    if(!db) return false;
+    try {
+      await db.ref(todayKey()).set({
+        questions: state.questions || [],
+        entries: state.entries || []
+      });
+      return true;
+    } catch(err){
+      return false;
+    }
+  }
+
+  function initRealtimeSync(){
+    if(!db) return;
+    const ref = db.ref(todayKey());
+    ref.on('value', (snapshot) => {
+      const val = snapshot.val();
+      if(val){
+        state.questions = val.questions || [];
+        state.entries = val.entries || [];
+      } else {
+        state.questions = [];
+        state.entries = [];
       }
-    }catch(err){}
+      updateSelectedQuestionDisplay();
+      renderField();
+    });
   }
 
-  async function loadField(){
-    await loadFieldSilent();
-    updateSelectedQuestionDisplay();
-    renderField();
-  }
-
-  async function saveField(){
-    try{
-      const res = await storeSet(todayKey(), JSON.stringify(state), true);
-      return res !== null;
-    }catch(err){ return false; }
-  }
-
-  async function loadMyName(){
-    try{
-      const res = await storeGet('myname', false);
-      if(res && res.value){
-        const data = JSON.parse(res.value);
-        myChar.name = data.name || '';
-      }
-    }catch(err){}
-    $('nameInput').value = myChar.name || '';
-  }
-
-  async function saveMyName(){
-    try{ await storeSet('myname', JSON.stringify(myChar), false); }catch(err){}
+  function loadMyName(){
+    const savedName = localStorage.getItem('happy_thai_name') || '';
+    myChar.name = savedName;
+    $('nameInput').value = savedName;
   }
 
   function setMode(m){
@@ -786,10 +762,8 @@ if ('serviceWorker' in navigator) {
     const x = Math.max(15, Math.min(85, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(15, Math.min(80, ((e.clientY - rect.top) / rect.height) * 100));
 
-    await loadFieldSilent();
-
     const newQ = {
-      id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+      id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
       text: pendingQuestionData.text,
       options: pendingQuestionData.options,
       pos: { x, y },
@@ -797,8 +771,9 @@ if ('serviceWorker' in navigator) {
       _justCreated: true
     };
 
+    if(!state.questions) state.questions = [];
     state.questions.push(newQ);
-    const ok = await saveField();
+    const ok = await saveFieldToCloud();
 
     isPlacingMode = false;
     $('field').classList.remove('placing-mode');
@@ -815,17 +790,11 @@ if ('serviceWorker' in navigator) {
     await submitAnswer();
   };
 
-  async function refreshLoop(){
-    await loadField();
-    setTimeout(refreshLoop, 3000);
-  }
-
   (async function init(){
     renderColorSwatches();
-    await loadMyName();
-    await loadField();
+    loadMyName();
     setMode('member');
-    refreshLoop();
+    initRealtimeSync();
   })();
 })();
 </script>
