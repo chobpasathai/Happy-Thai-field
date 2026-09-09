@@ -4,14 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Happy Thai field - Post-it Notes</title>
-<!-- PWA Manifest & Theme -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#689f46">
 <link rel="apple-touch-icon" href="icon-192.png">
 
-<!-- ใช้ html2canvas สำหรับแปลง DOM เป็นภาพ PNG -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<!-- Firebase SDKs สำหรับซิงค์ข้อมูลแบบเรียลไทม์ -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
@@ -119,9 +116,9 @@ textarea{resize:vertical; min-height:50px;}
 .field{
   position:relative; z-index:1;
   margin-top:20px;
-  height:640px;
+  height:800px;
   background:linear-gradient(180deg,#83bc5c 0%, #689f46 55%, #528134 100%);
-  overflow:hidden;
+  overflow:auto;
 }
 .field.placing-mode {
   cursor: crosshair !important;
@@ -129,7 +126,7 @@ textarea{resize:vertical; min-height:50px;}
 }
 .field::before{
   content:'';
-  position:absolute; inset:0;
+  position:absolute; inset:0; width:100%; height:100%;
   background-image:
     radial-gradient(circle, rgba(255,255,255,0.4) 3px, transparent 3px),
     radial-gradient(circle, rgba(255,255,255,0.25) 2px, transparent 2px);
@@ -160,6 +157,23 @@ textarea{resize:vertical; min-height:50px;}
 }
 .field-sign .sign-label{font-size:0.55rem; letter-spacing:0.02em; color:#8a7a4f; font-weight:700; text-transform:uppercase;}
 .field-sign .sign-text{font-family:'Baloo 2'; font-weight:700; font-size:0.78rem; margin-top:1px; color:#33421f; word-break:break-word;}
+.field-sign .sign-delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 0.6rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
 .field-sign.selected{border-color:#e0972e; box-shadow:0 6px 0 rgba(224,151,46,0.4); transform:translate(-50%, -50%) scale(1.05);}
 .field-sign:hover{transform:translate(-50%, -50%) scale(1.04);}
 
@@ -295,11 +309,6 @@ textarea{resize:vertical; min-height:50px;}
   text-align:center; padding:20px; pointer-events:none;
 }
 
-.selected-question{
-  background:#f0ead8; border-radius:10px; padding:8px 10px; font-size:0.85rem; color:#4a5c3f;
-}
-.selected-question.empty{font-style:italic; color:#8a9a80;}
-
 .option-buttons{display:flex; flex-direction:column; gap:8px;}
 .option-btn{
   background:#fff; border:2px solid #d8dfca; border-radius:10px; padding:9px 12px;
@@ -352,8 +361,10 @@ textarea{resize:vertical; min-height:50px;}
       <input type="text" id="nameInput" maxlength="16" placeholder="Enter your name">
     </div>
     <div class="field-row">
-      <label>Target Question Sign</label>
-      <div class="selected-question empty" id="selectedQuestionDisplay">👆 Click any wooden sign on the meadow first!</div>
+      <label for="questionSelectDropdown">Target Question Sign</label>
+      <select id="questionSelectDropdown">
+        <option value="">-- Choose a question sign from meadow --</option>
+      </select>
     </div>
     <div class="field-row" id="answerOptionsRow" style="display:none;">
       <label>Pick Your Answer</label>
@@ -391,9 +402,8 @@ if ('serviceWorker' in navigator) {
 }
 
 (function(){
-  // ตั้งค่า Firebase Database กลาง เพื่อให้ทุกคนซิงค์ข้อมูลร่วมกันได้ทันที
   const firebaseConfig = {
-    databaseURL: "https://happy-thai-field-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    databaseURL: "https://thai-visual-vocab-n8j82j-default-rtdb.asia-southeast1.firebasedatabase.app/"
   };
   
   let db = null;
@@ -408,18 +418,6 @@ if ('serviceWorker' in navigator) {
   let selectedColor = null;
   let selectedChoice = '';
   let currentRenderedQId = null;
-
-  const todayKey = () => {
-    const now = new Date();
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const thaiTime = new Date(utcTime + (7 * 3600000));
-    
-    if (thaiTime.getHours() < 6) {
-      thaiTime.setDate(thaiTime.getDate() - 1);
-    }
-    
-    return 'field_v2_' + thaiTime.toISOString().slice(0, 10).replace(/-/g, '_');
-  };
 
   let state = { questions:[], entries:[] };
   let myChar = { name:'' };
@@ -445,19 +443,31 @@ if ('serviceWorker' in navigator) {
     });
   }
 
-  function updateSelectedQuestionDisplay(){
-    const el = $('selectedQuestionDisplay');
-    const q = state.questions.find(q=>q.id===selectedQuestionId);
-    if(q){
-      el.textContent = q.text;
-      el.classList.remove('empty');
-    } else {
-      el.textContent = "👆 Click any wooden sign on the meadow first!";
-      el.classList.add('empty');
-      selectedQuestionId = null;
+  function updateQuestionDropdown(){
+    const dropdown = $('questionSelectDropdown');
+    const prevVal = selectedQuestionId;
+    dropdown.innerHTML = '<option value="">-- Choose a question sign from meadow --</option>';
+    
+    state.questions.forEach(q => {
+      const opt = document.createElement('option');
+      opt.value = q.id;
+      opt.textContent = q.text;
+      if(q.id === prevVal) opt.selected = true;
+      dropdown.appendChild(opt);
+    });
+
+    if(!state.questions.some(q => q.id === selectedQuestionId)){
+      selectedQuestionId = '';
+      dropdown.value = '';
     }
     renderAnswerUI();
   }
+
+  $('questionSelectDropdown').onchange = (e) => {
+    selectedQuestionId = e.target.value;
+    renderAnswerUI();
+    renderField();
+  };
 
   function renderAnswerUI(){
     const q = state.questions.find(q=>q.id===selectedQuestionId);
@@ -515,7 +525,7 @@ if ('serviceWorker' in navigator) {
     const extraChat = $('extraChatInput').value.trim();
     const imageInput = $('imageInput');
 
-    if(!selectedQuestionId){ statusEl.textContent = '⚠️ Oops! Pick a question sign on the meadow first!'; return; }
+    if(!selectedQuestionId){ statusEl.textContent = '⚠️ Oops! Pick a question sign from dropdown or meadow first!'; return; }
     if(!name){ statusEl.textContent = '⚠️ Hey there, don\'t forget to type your nickname!'; return; }
     if(!selectedColor){ statusEl.textContent = '⚠️ Pick your favorite Post-it color vibe!'; return; }
     if(q && q.options && q.options.length && !selectedChoice){ statusEl.textContent = '⚠️ Please select one of the awesome choices!'; return; }
@@ -606,6 +616,17 @@ if ('serviceWorker' in navigator) {
     renderField();
   }
 
+  async function handleDeleteSign(questionId, e) {
+    e.stopPropagation();
+    if(!confirm("Are you sure you want to delete this question sign and its post-its?")) return;
+    state.questions = (state.questions || []).filter(q => q.id !== questionId);
+    state.entries = (state.entries || []).filter(en => en.questionId !== questionId);
+    if(selectedQuestionId === questionId) selectedQuestionId = '';
+    await saveFieldToCloud();
+    updateQuestionDropdown();
+    renderField();
+  }
+
   function renderField(){
     const field = $('field');
     field.innerHTML = '';
@@ -627,12 +648,16 @@ if ('serviceWorker' in navigator) {
 
       sign.style.left = pos.x + '%';
       sign.style.top = pos.y + '%';
-      sign.innerHTML = '<div class="sign-label">Question</div><div class="sign-text"></div>';
+      sign.innerHTML = `<button class="sign-delete-btn" type="button" title="Delete Sign">×</button><div class="sign-label">Question</div><div class="sign-text"></div>`;
       sign.querySelector('.sign-text').textContent = q.text;
+      
+      sign.querySelector('.sign-delete-btn').onclick = (e) => handleDeleteSign(q.id, e);
+
       sign.onclick = (e)=>{
         e.stopPropagation();
         selectedQuestionId = q.id;
-        updateSelectedQuestionDisplay();
+        $('questionSelectDropdown').value = q.id;
+        renderAnswerUI();
         renderField();
       };
       field.appendChild(sign);
@@ -642,7 +667,7 @@ if ('serviceWorker' in navigator) {
         const cluster = document.createElement('div');
         cluster.className = 'post-it-cluster';
         cluster.style.left = pos.x + '%';
-        cluster.style.top = (pos.y + 10) + '%';
+        cluster.style.top = (pos.y + 12) + '%';
         cluster.onclick = (e) => e.stopPropagation();
 
         answers.forEach(ans=>{
@@ -654,10 +679,7 @@ if ('serviceWorker' in navigator) {
           const likesCount = ans.likes || 0;
           let contentHtml = '';
           
-          if(ans.name === myChar.name && myChar.name){
-            contentHtml += `<button class="delete-btn" type="button" title="Delete">🗑️</button>`;
-          }
-
+          contentHtml += `<button class="delete-btn" type="button" title="Delete">🗑️</button>`;
           contentHtml += `<div>${ans.answer}</div>`;
           if(ans.image){
             contentHtml += `<img src="${ans.image}" alt="attached image" />`;
@@ -670,11 +692,7 @@ if ('serviceWorker' in navigator) {
 
           pi.innerHTML = contentHtml;
           
-          const delBtn = pi.querySelector('.delete-btn');
-          if(delBtn){
-            delBtn.onclick = (e) => handleDeleteEntry(ans.id, e);
-          }
-
+          pi.querySelector('.delete-btn').onclick = (e) => handleDeleteEntry(ans.id, e);
           pi.querySelector('.like-btn').onclick = (e) => handleLike(ans.id, e);
           cluster.appendChild(pi);
         });
@@ -686,7 +704,7 @@ if ('serviceWorker' in navigator) {
   async function saveFieldToCloud(){
     if(!db) return false;
     try {
-      await db.ref(todayKey()).set({
+      await db.ref('happy_field_main_data').set({
         questions: state.questions || [],
         entries: state.entries || []
       });
@@ -698,7 +716,7 @@ if ('serviceWorker' in navigator) {
 
   function initRealtimeSync(){
     if(!db) return;
-    const ref = db.ref(todayKey());
+    const ref = db.ref('happy_field_main_data');
     ref.on('value', (snapshot) => {
       const val = snapshot.val();
       if(val){
@@ -708,7 +726,7 @@ if ('serviceWorker' in navigator) {
         state.questions = [];
         state.entries = [];
       }
-      updateSelectedQuestionDisplay();
+      updateQuestionDropdown();
       renderField();
     });
   }
@@ -759,8 +777,8 @@ if ('serviceWorker' in navigator) {
     if(!isPlacingMode || !pendingQuestionData) return;
 
     const rect = $('field').getBoundingClientRect();
-    const x = Math.max(15, Math.min(85, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(15, Math.min(80, ((e.clientY - rect.top) / rect.height) * 100));
+    const x = Math.max(10, Math.min(90, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(10, Math.min(90, ((e.clientY - rect.top) / rect.height) * 100));
 
     const newQ = {
       id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
@@ -782,7 +800,7 @@ if ('serviceWorker' in navigator) {
     $('creatorStatus').textContent = ok ? '🎉 Boom! Question sign successfully shared!' : '❌ Save failed, please check network!';
 
     selectedQuestionId = newQ.id;
-    updateSelectedQuestionDisplay();
+    updateQuestionDropdown();
     renderField();
   });
 
