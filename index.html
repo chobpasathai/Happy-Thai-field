@@ -3,917 +3,1024 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Happy Thai field - Post-it Notes</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#689f46">
-<link rel="apple-touch-icon" href="icon-192.png">
-
+<title>CHOBPASATHAI - Safe Space & Photo Booth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- โหลด html2canvas สำหรับเซฟรูปทุ่งหญ้า -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap');
+  /* Global Styles & Tab Navigation */
+  :root {
+    --primary-color: #2e3d96;
+    --accent-color: #ffbc59;
+    --bg-color: #f4f6f9;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    font-family: 'Bai Jamjuree', sans-serif;
+  }
 
-:root{
-  --sky-top:#bfe8f7;
-  --sky-bottom:#eef9e3;
-  --ink:#2c3a26;
-  --sun:#ffd15c;
-  --wood:#a97a4d;
-  --wood-dark:#6b4423;
-  --shadow: 0 8px 0 rgba(44,58,38,0.2);
-}
+  .app-nav {
+    display: flex;
+    justify-content: center;
+    background: #1f2a6b;
+    padding: 12px;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
 
-*{box-sizing:border-box;}
-body{margin:0;font-family:'Nunito',sans-serif;color:var(--ink);}
+  .nav-btn {
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Bai Jamjuree', sans-serif;
+  }
 
-.app{
-  background:linear-gradient(180deg,var(--sky-top) 0%, var(--sky-bottom) 55%);
-  border-radius:20px;
-  overflow:hidden;
-  position:relative;
-  min-height:720px;
-  padding-bottom:24px;
-}
+  .nav-btn.active {
+    background: var(--accent-color);
+    color: var(--primary-color);
+    border-color: var(--accent-color);
+  }
 
-.sun{
-  position:absolute; top:22px; right:36px;
-  width:64px; height:64px; border-radius:50%;
-  background:var(--sun);
-  box-shadow:0 0 0 8px rgba(255,209,92,0.28);
-}
-.cloud{position:absolute; background:#fff; border-radius:50px; opacity:0.9;}
-.cloud::before,.cloud::after{content:'';position:absolute;background:#fff;border-radius:50%;}
-.cloud1{width:70px;height:26px;top:34px;left:8%;}
-.cloud1::before{width:36px;height:36px;top:-16px;left:8px;}
-.cloud1::after{width:26px;height:26px;top:-10px;left:38px;}
-.cloud2{width:56px;height:22px;top:70px;left:60%;}
-.cloud2::before{width:28px;height:28px;top:-13px;left:6px;}
-.cloud2::after{width:20px;height:20px;top:-8px;left:30px;}
+  .app-view {
+    display: none;
+  }
 
-.title-bar{
-  position:relative; z-index:2;
-  padding:18px 26px 6px;
-  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
-}
-.title-bar h1{
-  font-family:'Baloo 2',sans-serif; font-weight:800; font-size:1.4rem; margin:0;
-  color:#2c4a20;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.mode-toggle{
-  display:flex; background:rgba(255,255,255,0.7); border-radius:999px; padding:4px; gap:2px;
-}
-.mode-toggle button{
-  border:none; padding:8px 16px; border-radius:999px; font-family:'Nunito'; font-weight:700;
-  font-size:0.85rem; cursor:pointer; background:transparent; color:#4a5c3f;
-}
-.mode-toggle button.active{background:var(--ink);color:#fff;}
+  .app-view.active {
+    display: block;
+  }
 
-.snapshot-btn{
-  background:#4a8a3a; color:#fff; border:none; padding:8px 16px; border-radius:999px;
-  font-family:'Nunito'; font-weight:700; font-size:0.85rem; cursor:pointer;
-  box-shadow:0 3px 0 #33611f; display:flex; align-items:center; gap:5px;
-}
-.snapshot-btn:active{transform:translateY(2px); box-shadow:0 1px 0 #33611f;}
+  /* --- Styles สำหรับส่วน Meadow (ทุ่งหญ้าฮีลใจ) --- */
+  .meadow-container {
+    max-width: 480px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #3E7C59;
+    border-radius: 12px;
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    position: relative;
+  }
 
-.panel{
-  position:relative; z-index:2;
-  max-width:560px; margin:15px auto 0; width:88%;
-  background:#fffaf0; border-radius:16px; padding:18px 22px;
-  box-shadow:var(--shadow);
-  border:3px solid var(--wood-dark);
-}
-.panel h2{font-family:'Baloo 2'; font-size:1.05rem; margin:0 0 10px;}
-.field-row{margin-bottom:10px;}
-.field-row label{display:block; font-weight:700; font-size:0.82rem; margin-bottom:4px; color:#4a5c3f;}
-input[type=text], input[type=file], textarea, select{
-  width:100%; padding:9px 12px; border-radius:10px; border:2px solid #d8dfca;
-  font-family:'Nunito'; font-size:0.95rem; background:#fff; color:var(--ink);
-}
-textarea{resize:vertical; min-height:50px;}
+  .meadow-field {
+    width: 100%;
+    height: 400px;
+    background: #52946d;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 15px;
+    border: 2px dashed rgba(255,255,255,0.4);
+  }
 
-.swatches{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; margin-bottom:8px;}
-.swatch{width:28px; height:28px; border-radius:50%; cursor:pointer; border:3px solid transparent;}
-.swatch.selected{border-color:var(--ink); transform:scale(1.1);}
+  .question-sign {
+    position: absolute;
+    background: #fff;
+    color: #333;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    cursor: pointer;
+    user-select: none;
+  }
 
-.primary-btn{
-  background:#4a8a3a; color:#fff; border:none; padding:10px 20px; border-radius:12px;
-  font-family:'Baloo 2'; font-weight:700; font-size:0.95rem; cursor:pointer;
-  box-shadow:0 4px 0 #33611f;
-}
-.primary-btn:active{transform:translateY(2px); box-shadow:0 2px 0 #33611f;}
-.primary-btn:disabled{opacity:0.5; cursor:default;}
-.status-msg{font-size:0.82rem; margin-top:6px; color:#5a6b4e; min-height:1em;}
+  .delete-sign-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-/* ---------- Field and Signs ---------- */
-.field{
-  position:relative; z-index:1;
-  margin-top:20px;
-  height:800px;
-  background:linear-gradient(180deg,#83bc5c 0%, #689f46 55%, #528134 100%);
-  overflow:auto;
-}
-.field.placing-mode {
-  cursor: crosshair !important;
-  box-shadow: inset 0 0 0 4px #e0972e;
-}
-.field::before{
-  content:'';
-  position:absolute; inset:0; width:100%; height:100%;
-  background-image:
-    radial-gradient(circle, rgba(255,255,255,0.4) 3px, transparent 3px),
-    radial-gradient(circle, rgba(255,255,255,0.25) 2px, transparent 2px);
-  background-size: 80px 60px, 50px 40px;
-  background-position: 10px 20px, 30px 40px;
-  opacity:0.3;
-  pointer-events: none;
-}
+  .meadow-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 
-.field-sign{
-  position:absolute;
-  background:#fffaf0;
-  border:3px solid var(--wood-dark);
-  border-radius:10px;
-  padding:8px 10px;
-  width:160px;
-  text-align:center;
-  cursor:pointer;
-  box-shadow:var(--shadow);
-  transform:translate(-50%, -50%);
-  z-index:5;
-  transition: transform 0.15s ease;
-}
-.field-sign::after{
-  content:'';
-  position:absolute; bottom:-14px; left:50%; transform:translateX(-50%);
-  width:6px; height:14px; background:var(--wood-dark); border-radius:2px;
-}
-.field-sign .sign-label{font-size:0.55rem; letter-spacing:0.02em; color:#8a7a4f; font-weight:700; text-transform:uppercase;}
-.field-sign .sign-text{font-family:'Baloo 2'; font-weight:700; font-size:0.78rem; margin-top:1px; color:#33421f; word-break:break-word;}
-.field-sign .sign-delete-btn {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ff4d4d;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  font-size: 0.6rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-.field-sign.selected{border-color:#e0972e; box-shadow:0 6px 0 rgba(224,151,46,0.4); transform:translate(-50%, -50%) scale(1.05);}
-.field-sign:hover{transform:translate(-50%, -50%) scale(1.04);}
+  .meadow-input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Bai Jamjuree', sans-serif;
+    box-sizing: border-box;
+  }
 
-@keyframes bounceDrop {
-  0% { transform: translate(-50%, -150%) scale(0.8); opacity: 0; }
-  60% { transform: translate(-50%, -40%) scale(1.05); opacity: 1; }
-  80% { transform: translate(-50%, -55%) scale(0.95); }
-  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-}
-.field-sign.bounce-anim {
-  animation: bounceDrop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
+  .meadow-btn {
+    background: var(--accent-color);
+    color: var(--primary-color);
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Bai Jamjuree', sans-serif;
+  }
 
-.post-it-cluster {
-  position: absolute;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  width: 240px;
-  max-height: 240px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  justify-content: center;
-  transform: translateX(-50%);
-  z-index: 4;
-  pointer-events: auto;
-  padding: 4px;
-  scrollbar-width: thin;
-}
-.post-it {
-  background: #fff9b1;
-  border: 1px solid #e2d27c;
-  border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  box-shadow: 2px 3px 5px rgba(0,0,0,0.15);
-  max-width: 110px;
-  text-align: center;
-  word-break: break-word;
-  position: relative;
-  pointer-events: auto;
-  animation: popIn 0.3s ease;
-}
-.post-it .author {
-  font-size: 0.55rem;
-  color: #666;
-  border-top: 1px dashed rgba(0,0,0,0.15);
-  margin-top: 2px;
-  padding-top: 1px;
-}
-.post-it .extra-chat {
-  font-size: 0.6rem;
-  color: #333;
-  background: rgba(255,255,255,0.5);
-  border-radius: 3px;
-  padding: 2px 4px;
-  margin-top: 3px;
-  border: 1px dashed rgba(0,0,0,0.1);
-}
-.post-it img {
-  max-width: 100%;
-  max-height: 70px;
-  border-radius: 3px;
-  display: block;
-  margin: 4px auto 0;
-  object-fit: cover;
-}
-.post-it .like-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 0.65rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  margin: 3px auto 0;
-  padding: 2px 6px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.6);
-  color: #d93838;
-  font-weight: 700;
-  transition: transform 0.1s;
-}
-.post-it .like-btn:hover {
-  transform: scale(1.1);
-  background: rgba(255,255,255,0.9);
-}
-.post-it .delete-btn {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background: rgba(255, 255, 255, 0.8);
-  border: none;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  font-size: 0.5rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #b00;
-}
-.post-it .delete-btn:hover {
-  background: #ffcccc;
-}
+  /* --- Styles สำหรับส่วน Photo Booth (ดึงจากโค้ดของคุณแบบ 100%) --- */
+  .pb-photobooth{
+    --pb-ink:        #2e3d96;   
+    --pb-ink-2:      #1f2a6b;   
+    --pb-ink-3:      #4a5ac4;   
+    --pb-gold:       #ffbc59;   
+    --pb-gold-deep:  #e09f3c;   
+    --pb-jade:       #3E7C59;   
+    --pb-paper:      #ffffff;   
+    --pb-text-light: #ffffff;   
+    --pb-text-muted: #d0d7ff;   
 
-@keyframes popIn {
-  0% { transform: scale(0); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
+    display: block;
+    max-width: 480px;
+    margin: 20px auto;
+    padding: 24px 16px 32px;
+    background: var(--pb-ink);
+    color: var(--pb-text-light);
+    font-family: 'Bai Jamjuree', sans-serif;
+    font-size: 16px;
+    line-height: 1.4;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    border-radius: 12px;
+  }
 
-@keyframes handStamp {
-  0% { transform: translate(-50%, -120%) scale(1.4) rotate(-15deg); opacity: 0; }
-  50% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
-  70% { transform: translate(-50%, -50%) scale(1.05) rotate(5deg); opacity: 1; }
-  100% { transform: translate(-50%, -120%) scale(1.2) rotate(0deg); opacity: 0; }
-}
-.hand-stamp-effect {
-  position: absolute;
-  z-index: 10;
-  font-size: 3rem;
-  transform: translate(-50%, -50%);
-  animation: handStamp 0.8s ease-in-out forwards;
-  pointer-events: none;
-}
+  .pb-photobooth,
+  .pb-photobooth *,
+  .pb-photobooth *::before,
+  .pb-photobooth *::after{
+    box-sizing: border-box;
+    font-family: 'Bai Jamjuree', sans-serif;
+  }
 
-/* Notification Toast */
-.toast-alert {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%) translateY(100px);
-  background: #2c3a26;
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: 30px;
-  font-family: 'Baloo 2';
-  font-size: 0.9rem;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-  z-index: 1000;
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.toast-alert.show {
-  transform: translateX(-50%) translateY(0);
-}
+  .pb-photobooth .pb-header{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
 
-.empty-field-msg{
-  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-  color:rgba(255,255,255,0.9); font-family:'Baloo 2'; font-weight:700; font-size:1rem;
-  text-align:center; padding:20px; pointer-events:none;
-}
+  .pb-photobooth .pb-mark{
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--pb-gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #fff;
+  }
 
-.option-buttons{display:flex; flex-direction:column; gap:8px;}
-.option-btn{
-  background:#fff; border:2px solid #d8dfca; border-radius:10px; padding:9px 12px;
-  font-family:'Nunito'; font-weight:700; font-size:0.9rem; text-align:left; cursor:pointer; color:var(--ink);
-}
-.option-btn:hover{border-color:#4a8a3a; background:#f3f9ef;}
-.option-btn.selected{border-color:#4a8a3a; background:#e2f0d9;}
+  .pb-photobooth .pb-mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
 
-.footer-note{
-  text-align:center; font-size:0.75rem; color:#5c6a52; margin-top:10px; padding:0 20px;
-}
+  .pb-photobooth .pb-header-text h1{
+    font-weight: 700;
+    font-size: 17px;
+    margin: 0 0 2px;
+    color: var(--pb-gold);
+  }
+
+  .pb-photobooth .pb-header-text p{
+    margin: 0;
+    font-size: 13px;
+    color: var(--pb-text-muted);
+  }
+
+  .pb-photobooth .pb-selector-section {
+    background: var(--pb-ink-2);
+    border: 1px solid var(--pb-ink-3);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+
+  .pb-photobooth .pb-option-label {
+    font-size: 12px;
+    color: var(--pb-gold);
+    margin-bottom: 8px;
+    display: block;
+    font-weight: 600;
+  }
+
+  .pb-theme-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .pb-theme-item {
+    background: var(--pb-ink);
+    border: 2px solid var(--pb-ink-3);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    aspect-ratio: 1 / 1;
+  }
+
+  .pb-theme-item:hover {
+    border-color: var(--pb-gold);
+    transform: translateY(-1px);
+  }
+
+  .pb-theme-item.pb-active {
+    border-color: var(--pb-gold);
+    box-shadow: 0 0 10px rgba(255, 188, 89, 0.5);
+  }
+
+  .pb-theme-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #0D1526;
+  }
+
+  .pb-theme-name {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--pb-text-light);
+    font-size: 10.5px;
+    text-align: center;
+    padding: 3px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pb-photobooth .pb-options-panel {
+    background: var(--pb-ink-2);
+    border: 1px solid var(--pb-ink-3);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+
+  .pb-photobooth .pb-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    max-height: 85px;
+    overflow-y: auto;
+  }
+
+  .pb-photobooth .pb-chip {
+    background: var(--pb-ink);
+    border: 1px solid var(--pb-ink-3);
+    color: var(--pb-text-light);
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .pb-photobooth .pb-chip:hover {
+    border-color: var(--pb-gold);
+  }
+  .pb-photobooth .pb-chip.pb-active {
+    background: var(--pb-gold);
+    color: var(--pb-ink);
+    border-color: var(--pb-gold);
+    font-weight: 600;
+  }
+
+  .pb-photobooth .pb-input-text {
+    width: 100%;
+    background: var(--pb-ink);
+    border: 1px solid var(--pb-ink-3);
+    color: var(--pb-text-light);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+    margin-top: 8px;
+    resize: vertical;
+    min-height: 60px;
+    line-height: 1.4;
+  }
+  .pb-photobooth .pb-input-text:focus {
+    border-color: var(--pb-gold);
+  }
+
+  .pb-photobooth .pb-stage{
+    position: relative;
+    background: var(--pb-ink-2);
+    border: 1px solid var(--pb-ink-3);
+    padding: 14px;
+  }
+
+  .pb-photobooth .pb-polaroid{
+    background: var(--pb-paper);
+    padding: 18px 18px 16px 18px; 
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.4);
+    border: 1px solid #dcdcdc;
+    position: relative;
+  }
+
+  .pb-border-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.85;
+    display: none;
+    z-index: 2;
+    border-radius: 4px;
+  }
+
+  .pb-photobooth .pb-frame{
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: #0D1526;
+    z-index: 3;
+  }
+
+  .pb-photobooth .pb-frame video,
+  .pb-photobooth .pb-frame img{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .pb-photobooth .pb-frame video.pb-mirror{ transform: scaleX(-1); }
+
+  .pb-photobooth .pb-polaroid-caption{
+    padding: 14px 4px 4px;
+    text-align: left; 
+    position: relative;
+    z-index: 3;
+    min-height: 50px;
+  }
+
+  .pb-photobooth .pb-polaroid-text{
+    font-weight: 600;
+    font-size: 15px;
+    color: #2e3d96;
+    margin: 0;
+    word-break: break-word;
+    white-space: pre-wrap; 
+  }
+
+  .pb-polaroid-brand-footer {
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--pb-text-muted);
+    margin-top: 20px; 
+    margin-bottom: 6px;
+  }
+
+  .pb-photobooth .pb-flip-btn{
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 5;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(23, 35, 61, 0.6);
+    color: var(--pb-text-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .pb-photobooth .pb-flip-btn svg{ width: 20px; height: 20px; }
+
+  .pb-photobooth .pb-countdown{
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 96px;
+    color: var(--pb-gold);
+    text-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    background: rgba(46, 61, 150, 0.4);
+    z-index: 10;
+  }
+
+  .pb-photobooth .pb-flash{
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 11;
+  }
+  .pb-photobooth .pb-flash.pb-on{ animation: pb-flashpop 380ms ease-out; }
+  @keyframes pb-flashpop{
+    0%   { opacity: 0.95; }
+    100% { opacity: 0; }
+  }
+
+  .pb-photobooth .pb-status{
+    text-align: center;
+    font-size: 13px;
+    color: var(--pb-text-muted);
+    min-height: 18px;
+    margin-top: 10px;
+  }
+  .pb-photobooth .pb-status.pb-error{ color: #ff9999; }
+
+  .pb-photobooth .pb-shutter-row{
+    display: flex;
+    justify-content: center;
+    margin-top: 14px;
+  }
+
+  .pb-photobooth .pb-shutter{
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: 4px solid var(--pb-gold);
+    background: transparent;
+    position: relative;
+    cursor: pointer;
+    padding: 0;
+  }
+  .pb-photobooth .pb-shutter::after{
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: var(--pb-gold);
+  }
+  .pb-photobooth .pb-shutter:disabled{ opacity: 0.4; cursor: default; }
+
+  .pb-photobooth .pb-actions{
+    display: none;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .pb-photobooth .pb-actions.pb-show{ display: flex; }
+
+  .pb-photobooth .pb-btn{
+    flex: 1;
+    padding: 10px 6px;
+    border-radius: 12px;
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .pb-photobooth .pb-btn span {
+    display: block;
+  }
+  .pb-photobooth .pb-btn .pb-sub-text {
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.85;
+  }
+  .pb-photobooth .pb-btn-retake{ background: transparent; border: 1px solid var(--pb-ink-3); color: var(--pb-text-light); }
+  .pb-photobooth .pb-btn-save{ background: var(--pb-gold); color: var(--pb-ink); }
+  .pb-photobooth .pb-btn-share{ background: var(--pb-jade); color: var(--pb-text-light); }
+  
+  .pb-photobooth .pb-confetti-piece{
+    position: absolute;
+    top: -6%;
+    font-size: 20px;
+    pointer-events: none;
+    z-index: 12;
+    animation: pb-confetti-fall 900ms ease-in forwards;
+  }
+  @keyframes pb-confetti-fall{
+    0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(360px) rotate(340deg); opacity: 0; }
+  }
 </style>
 </head>
 <body>
-<div class="app" id="app">
 
-  <div class="sun"></div>
-  <div class="cloud cloud1"></div>
-  <div class="cloud cloud2"></div>
+  <!-- แถบสลับหน้าจอ (Tab Navigation) -->
+  <nav class="app-nav">
+    <button class="nav-btn active" onclick="switchTab('meadow', this)">🌾 Meadow Safe Space</button>
+    <button class="nav-btn" onclick="switchTab('photobooth', this)">📸 Photo Booth</button>
+  </nav>
 
-  <div class="title-bar">
-    <h1>🌾 Happy Thai field</h1>
-    <div class="header-actions">
-      <button class="snapshot-btn" id="snapshotBtn" type="button">📸 Save Snapshot</button>
-      <div class="mode-toggle">
-        <button id="btnMember" class="active">Member</button>
-        <button id="btnCreator">Creator</button>
+  <!-- ส่วนที่ 1: Meadow (ทุ่งหญ้าฮีลใจ - พร้อมแก้บั๊ก 3 ข้อ) -->
+  <div id="meadowView" class="app-view active">
+    <div class="meadow-container" id="meadowCaptureArea">
+      <h2>พื้นที่ฮีลใจคนเรียนภาษาไทย</h2>
+      <div class="meadow-field" id="meadowField">
+        <!-- ตัวอย่างป้าย (สมมติว่าผู้ใช้สร้างไว้ และกำหนดสิทธิ์เฉพาะ Creator ถึงเห็นปุ่มลบ) -->
+        <div class="question-sign" style="top: 30px; left: 20px;" data-creator="my-device-id">
+          QUESTION: ปัก
+          <!-- ปุ่มลบจะแสดงเฉพาะเจ้าของป้าย (Creator) เท่านั้น -->
+          <button class="delete-sign-btn" onclick="deleteSign(this)">×</button>
+        </div>
+      </div>
+      <div class="meadow-controls">
+        <input type="text" id="signInput" class="meadow-input" placeholder="พิมพ์ปักป้ายข้อความของคุณ...">
+        <button class="meadow-btn" onclick="addSign()">ปักป้ายใหม่</button>
+        <button class="meadow-btn" style="background:#2e3d96; color:#fff;" onclick="saveMeadowImage()">เซฟรูปทุ่งหญ้า</button>
       </div>
     </div>
   </div>
 
-  <div class="panel" id="creatorPanel" style="display:none;">
-    <h2>✨ Plant a New Question Sign!</h2>
-    <div class="field-row">
-      <label for="qInput">Your Fun Question</label>
-      <textarea id="qInput" placeholder="What's on your mind today? Let's ask everyone!"></textarea>
+  <!-- ส่วนที่ 2: Photo Booth (โค้ดดั้งเดิมของคุณ 100%)[cite: 1] -->
+  <div id="photoboothView" class="app-view">
+    <div class="pb-photobooth">
+      <div class="pb-header">
+        <div class="pb-mark">
+          <img src="https://lh3.googleusercontent.com/d/1nFAbuZ3QLGBuGj5CiV4HfxDmovsOnd9v" alt="Logo" crossorigin="anonymous">
+        </div>
+        <div class="pb-header-text">
+          <h1>CHOBPASATHAI Photo Booth</h1>
+          <p>มาถ่ายรูปกันนน !! ✨</p>
+        </div>
+      </div>
+
+      <div class="pb-selector-section">
+        <span class="pb-option-label">FRAME</span>
+        <div class="pb-theme-grid" id="pbThemeGrid"></div>
+      </div>
+
+      <div class="pb-options-panel">
+        <span class="pb-option-label">TEXT & EMOJI</span>
+        <div class="pb-chips" id="pb-textChips">
+          <button class="pb-chip pb-text-chip pb-active" data-text="#CHOBPASATHAI">#CHOBPASATHAI</button>
+          <button class="pb-chip pb-text-chip" data-text="#อร่อยสุดๆ">#อร่อยสุดๆ</button>
+          <button class="pb-chip pb-text-chip" data-text="#สนุกมากกกกก">#สนุกมากกกกก</button>
+          <button class="pb-chip pb-text-chip" data-text="#ต้องซ้ำ">#ต้องซ้ำ</button>
+          <button class="pb-chip pb-text-chip" data-text="#น่ารักเกินไปแล้ว">#น่ารักเกินไปแล้ว</button>
+          <button class="pb-chip pb-text-chip" data-text="#ดีงาม">#ดีงาม</button>
+          <button class="pb-chip pb-text-chip" data-text="#ภาษาไทยวันนี้">#ภาษาไทยวันนี้</button>
+          <button class="pb-chip pb-text-chip" data-text="#วันนี้มีความสุขมาก">#วันนี้มีความสุขมาก</button>
+          <button class="pb-chip pb-text-chip" data-text="#ขอบคุณจากใจ">#ขอบคุณจากใจ</button>
+          <button class="pb-chip pb-text-chip" data-text="(｡•̀ᴗ-｡) 👍">(｡•̀ᴗ-｡) 👍</button>
+          <button class="pb-chip pb-text-chip" data-text="(๑>◡<๑) 🍜">(๑>◡<๑) 🍜</button>
+          <button class="pb-chip pb-text-chip" data-text="(ง •_•)ง 💪">(ง •_•)ง 💪</button>
+          <button class="pb-chip pb-text-chip" data-text="(人^з^) 🙏">(人^з^) 🙏</button>
+          <button class="pb-chip pb-text-chip" data-text="(★ω★) 🌟">(★ω★) 🌟</button>
+          <button class="pb-chip pb-text-chip" data-text="(◡‿◡✿) ☕">(◡‿◡✿) ☕</button>
+          <button class="pb-chip pb-text-chip" data-text="(｡♥‿♥｡) ❤️">(｡♥‿♥｡) ❤️</button>
+          <button class="pb-chip pb-text-chip" data-text="(^,^)/ 🇹🇭">(^,^)/ 🇹🇭</button>
+          <button class="pb-chip pb-text-chip" data-text="(⊙_⊙) 😲">(⊙_⊙) 😲</button>
+          <button class="pb-chip pb-text-chip" data-text="(¬_¬ ) 🍃">(¬_¬ ) 🍃</button>
+          <button class="pb-chip pb-text-chip" data-text="(o˘◡˘o) 🌸">(o˘◡˘o) 🌸</button>
+          <button class="pb-chip pb-text-chip" data-text="(╯°□°）╯ ⚡">(╯°□°）╯ ⚡</button>
+          <button class="pb-chip pb-text-chip" data-text="(^_^)v ✨">(^_^)v ✨</button>
+          <button class="pb-chip pb-text-chip" data-text="(;-_-) 💦">(;-_-) 💦</button>
+          <button class="pb-chip pb-text-chip" data-text="( T_T) 🌧️">( T_T) 🌧️</button>
+          <button class="pb-chip pb-text-chip" data-text="(≧◡≦) 🎈">(≧◡≦) 🎈</button>
+          <button class="pb-chip pb-text-chip" data-text="(˘⌣˘) 🌙">(˘⌣˘) 🌙</button>
+          <button class="pb-chip pb-text-chip" data-text="(o_O) ?">(o_O) ?</button>
+          <button class="pb-chip pb-text-chip" data-text="(='X'=) 🐱">(='X'=) 🐱</button>
+          <button class="pb-chip pb-text-chip" data-text="(*^*) 🍊">(*^*) 🍊</button>
+        </div>
+        <textarea class="pb-input-text" id="pb-captionInput" placeholder="พิมพ์ข้อความเพิ่มเติม... (กด Enter เพื่อขึ้นบรรทัดใหม่ได้)"></textarea>
+      </div>
+
+      <div class="pb-stage">
+        <div class="pb-polaroid" id="pb-polaroid">
+          <div class="pb-border-overlay" id="pb-borderOverlay"></div>
+          
+          <div class="pb-frame" id="pb-frame">
+            <video id="pb-video" autoplay playsinline muted></video>
+
+            <button class="pb-flip-btn" id="pb-flipBtn" type="button" aria-label="สลับกล้อง">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 2l4 4-4 4"/>
+                <path d="M3 12v-2a4 4 0 0 1 4-4h14"/>
+                <path d="M7 22l-4-4 4-4"/>
+                <path d="M21 12v2a4 4 0 0 1-4 4H3"/>
+              </svg>
+            </button>
+
+            <div class="pb-countdown" id="pb-countdown"></div>
+            <div class="pb-flash" id="pb-flash"></div>
+          </div>
+
+          <div class="pb-polaroid-caption">
+            <p class="pb-polaroid-text" id="pb-captionPreview"></p>
+          </div>
+        </div>
+
+        <div class="pb-status" id="pb-status"></div>
+
+        <div class="pb-shutter-row" id="pb-shutterRow">
+          <button class="pb-shutter" id="pb-shutterBtn" aria-label="Take photo" type="button"></button>
+        </div>
+
+        <div class="pb-actions" id="pb-actions">
+          <button class="pb-btn pb-btn-retake" id="pb-retakeBtn" type="button">
+            ถ่ายใหม่<span class="pb-sub-text">Retake</span>
+          </button>
+          <button class="pb-btn pb-btn-save" id="pb-saveBtn" type="button">
+            บันทึกรูป<span class="pb-sub-text">Save</span>
+          </button>
+          <button class="pb-btn pb-btn-share" id="pb-shareBtn" type="button">
+            แชร์รูป<span class="pb-sub-text">Share</span>
+          </button>
+        </div>
+
+        <div class="pb-polaroid-brand-footer">
+          CHOBPASATHAI - ชอบภาษาไทย
+        </div>
+      </div>
     </div>
-    <div class="field-row">
-      <label for="optionsInput">Awesome Choices (one per line — optional)</label>
-      <textarea id="optionsInput" placeholder="Option 1&#10;Option 2"></textarea>
-    </div>
-    <button class="primary-btn" id="placeSignBtn" type="button">🌱 Plant Sign on the Meadow</button>
-    <div class="status-msg" id="creatorStatus">Type your question, click the button, then tap anywhere on the green field below!</div>
   </div>
 
-  <div class="panel" id="memberPanel">
-    <h2>🎯 Drop Your Colorful Post-it!</h2>
-    <div class="field-row">
-      <label for="nameInput">Your Cool Nickname</label>
-      <input type="text" id="nameInput" maxlength="16" placeholder="Enter your name">
-    </div>
-    <div class="field-row">
-      <label for="questionSelectDropdown">Target Question Sign</label>
-      <select id="questionSelectDropdown">
-        <option value="">-- Choose a question sign from meadow --</option>
-      </select>
-    </div>
-    <div class="field-row" id="answerOptionsRow" style="display:none;">
-      <label>Pick Your Answer</label>
-      <div class="option-buttons" id="answerOptions"></div>
-    </div>
-    <div class="field-row" id="freeTextRow">
-      <label for="answerInput">Your Answer</label>
-      <textarea id="answerInput" placeholder="Type your brilliant answer here..."></textarea>
-    </div>
-    <div class="field-row">
-      <label>Pick Your Post-it Vibe (Color)</label>
-      <div class="swatches" id="colorSwatches"></div>
-    </div>
-    <div class="field-row">
-      <label for="imageInput">Attach PNG Image (Food, etc. — Optional)</label>
-      <input type="file" id="imageInput" accept="image/png, image/jpeg">
-    </div>
-    <div class="field-row">
-      <label for="extraChatInput">Secret Vibe / Extra Chat (Optional)</label>
-      <input type="text" id="extraChatInput" maxlength="60" placeholder="Drop some extra thoughts or jokes here...">
-    </div>
-    <button class="primary-btn" id="dropBtn" type="button">📌 Stamp Post-it to Meadow!</button>
-    <div class="status-msg" id="memberStatus"></div>
-  </div>
-
-  <div class="field" id="field"></div>
-  <div class="footer-note">🌟 Happy Thai field: Explore around, click any question sign, and leave your colorful mark with friends!</div>
-</div>
-
-<div class="toast-alert" id="toastAlert">🔔 <span id="toastText">Someone replied to your sign!</span></div>
+  <canvas id="pb-canvas" style="display:none;"></canvas>
 
 <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  });
-}
-
-(function(){
-  const firebaseConfig = {
-    databaseURL: "https://thai-visual-vocab-n8j82j-default-rtdb.asia-southeast1.firebasedatabase.app/"
-  };
-  
-  let db = null;
-  try {
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-  } catch(e) {
-    console.error("Firebase init error", e);
-  }
-
-  const POST_IT_COLORS = ['#fff9b1', '#ffcac8', '#c7f9cc', '#cbf3f0', '#fde2e4', '#e2ece9', '#ffd1dc', '#dcedc1'];
-  let selectedColor = null;
-  let selectedChoice = '';
-  let currentRenderedQId = null;
-
-  let state = { questions:[], entries:[] };
-  let myChar = { name:'' };
-  let mode = 'member';
-  let selectedQuestionId = null;
-  let isPlacingMode = false;
-  let pendingQuestionData = null;
-  let previousEntriesCount = {};
-
-  const $ = id => document.getElementById(id);
-
-  function playAlertSound() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
-    } catch(e) {}
-  }
-
-  function showToast(msg) {
-    const toast = $('toastAlert');
-    $('toastText').textContent = msg;
-    toast.classList.add('show');
-    playAlertSound();
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3500);
-  }
-
-  function renderColorSwatches(){
-    const container = $('colorSwatches');
-    container.innerHTML = '';
-    POST_IT_COLORS.forEach(color => {
-      const swatch = document.createElement('div');
-      swatch.className = 'swatch' + (color === selectedColor ? ' selected' : '');
-      swatch.style.background = color;
-      swatch.onclick = () => {
-        selectedColor = color;
-        renderColorSwatches();
-      };
-      container.appendChild(swatch);
-    });
-  }
-
-  function updateQuestionDropdown(){
-    const dropdown = $('questionSelectDropdown');
-    const prevVal = selectedQuestionId;
-    dropdown.innerHTML = '<option value="">-- Choose a question sign from meadow --</option>';
+  // ฟังก์ชันสลับหน้าจอ Tab
+  function switchTab(tabName, btnEl) {
+    document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     
-    state.questions.forEach(q => {
-      const opt = document.createElement('option');
-      opt.value = q.id;
-      opt.textContent = q.text;
-      if(q.id === prevVal) opt.selected = true;
-      dropdown.appendChild(opt);
-    });
-
-    if(!state.questions.some(q => q.id === selectedQuestionId)){
-      selectedQuestionId = '';
-      dropdown.value = '';
+    if(tabName === 'meadow') {
+      document.getElementById('meadowView').classList.add('active');
+    } else if(tabName === 'photobooth') {
+      document.getElementById('photoboothView').classList.add('active');
     }
-    renderAnswerUI();
+    btnEl.classList.add('active');
   }
 
-  $('questionSelectDropdown').onchange = (e) => {
-    selectedQuestionId = e.target.value;
-    renderAnswerUI();
-    renderField();
-  };
+  // --- ระบบ Meadow Logic (พร้อมแก้ 3 บั๊ก: เซฟรูปไม่หาย, แจ้งเตือนอัจฉริยะ, และจำกัดสิทธิ์ลบเฉพาะ Creator) ---
+  const myDeviceId = "my-device-id"; // จำลอง ID ของเครื่องเรา
 
-  function renderAnswerUI(){
-    const q = state.questions.find(q=>q.id===selectedQuestionId);
-    const optsRow = $('answerOptionsRow');
-    const freeRow = $('freeTextRow');
-    const optsWrap = $('answerOptions');
+  function addSign() {
+    const input = document.getElementById('signInput');
+    const text = input.value.trim();
+    if(!text) return;
 
-    if(!q || !q.options || !q.options.length){
-      optsRow.style.display = 'none';
-      freeRow.style.display = 'block';
-      currentRenderedQId = null;
-      return;
-    }
-
-    optsRow.style.display = 'block';
-    freeRow.style.display = 'none';
-
-    if(currentRenderedQId !== selectedQuestionId){
-      currentRenderedQId = selectedQuestionId;
-      optsWrap.innerHTML = '';
-      q.options.forEach(opt=>{
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'option-btn' + (selectedChoice === opt ? ' selected' : '');
-        b.textContent = opt;
-        b.onclick = ()=>{
-          selectedChoice = opt;
-          Array.from(optsWrap.children).forEach(btn => btn.classList.remove('selected'));
-          b.classList.add('selected');
-        };
-        optsWrap.appendChild(b);
-      });
-    } else {
-      Array.from(optsWrap.children).forEach(btn => {
-        if(btn.textContent === selectedChoice) {
-          btn.classList.add('selected');
-        } else {
-          btn.classList.remove('selected');
-        }
-      });
-    }
-  }
-
-  async function submitAnswer(){
-    const statusEl = $('memberStatus');
-    const name = $('nameInput').value.trim();
-    const q = state.questions.find(q=>q.id===selectedQuestionId);
+    const field = document.getElementById('meadowField');
+    const sign = document.createElement('div');
+    sign.className = 'question-sign';
+    sign.style.top = Math.floor(Math.random() * 250) + 'px';
+    sign.style.left = Math.floor(Math.random() * 200) + 'px';
+    sign.setAttribute('data-creator', myDeviceId);
     
-    let answerVal = '';
-    if(q && q.options && q.options.length){
-      answerVal = selectedChoice;
+    sign.innerHTML = `QUESTION: ${text}<button class="delete-sign-btn" onclick="deleteSign(this)">×</button>`;
+    field.appendChild(sign);
+    input.value = '';
+  }
+
+  function deleteSign(btn) {
+    const sign = btn.parentElement;
+    const creator = sign.getAttribute('data-creator');
+    
+    // ตรวจสอบสิทธิ์: เฉพาะ Creator ถึงลบได้
+    if(creator === myDeviceId) {
+      sign.remove();
     } else {
-      answerVal = $('answerInput').value.trim();
+      alert("คุณไม่มีสิทธิ์ลบป้ายของผู้อื่นครับ!");
     }
-    const extraChat = $('extraChatInput').value.trim();
-    const imageInput = $('imageInput');
-
-    if(!selectedQuestionId){ statusEl.textContent = '⚠️ Oops! Pick a question sign from dropdown or meadow first!'; return; }
-    if(!name){ statusEl.textContent = '⚠️ Hey there, don\'t forget to type your nickname!'; return; }
-    if(!selectedColor){ statusEl.textContent = '⚠️ Pick your favorite Post-it color vibe!'; return; }
-    if(q && q.options && q.options.length && !selectedChoice){ statusEl.textContent = '⚠️ Please select one of the awesome choices!'; return; }
-    if((!q || !q.options || !q.options.length) && !answerVal){ statusEl.textContent = '⚠️ Write down your brilliant answer!'; return; }
-
-    myChar.name = name;
-    localStorage.setItem('happy_thai_name', name);
-
-    statusEl.textContent = '✨ Syncing & Stamping your Post-it...';
-    $('dropBtn').disabled = true;
-
-    let imageData = '';
-    if(imageInput.files && imageInput.files[0]){
-      imageData = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.readAsDataURL(imageInput.files[0]);
-      });
-    }
-
-    const targetQ = state.questions.find(q => q.id === selectedQuestionId);
-    if (targetQ && targetQ.pos) {
-      await playHandStampAnimation(targetQ.pos);
-    }
-
-    const randomRotation = (Math.random() * 24 - 12).toFixed(1);
-
-    const newEntry = {
-      id: 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-      questionId: selectedQuestionId,
-      name: name,
-      answer: answerVal,
-      extraChat: extraChat,
-      image: imageData,
-      color: selectedColor,
-      rotation: randomRotation,
-      likes: 0,
-      ts: Date.now()
-    };
-
-    if(!state.entries) state.entries = [];
-    state.entries.push(newEntry);
-
-    const ok = await saveFieldToCloud();
-    statusEl.textContent = ok ? '🎉 Yay! Post-it successfully stamped & shared!' : '❌ Save failed. Please check network and try again!';
-    if($('answerInput')) $('answerInput').value = '';
-    $('extraChatInput').value = '';
-    imageInput.value = '';
-    selectedChoice = '';
-    currentRenderedQId = null;
-    $('dropBtn').disabled = false;
-    renderField();
-    renderAnswerUI();
   }
 
-  function playHandStampAnimation(targetPos) {
-    return new Promise((resolve) => {
-      const field = $('field');
-      const handEl = document.createElement('div');
-      handEl.className = 'hand-stamp-effect';
-      handEl.textContent = '✋';
-      
-      handEl.style.left = targetPos.x + '%';
-      handEl.style.top = (targetPos.y + 4) + '%';
-      field.appendChild(handEl);
+  function saveMeadowImage() {
+    const captureArea = document.getElementById('meadowCaptureArea');
+    // ซ่อนปุ่มลบชั่วคราวก่อนจับภาพเพื่อให้รูปสะอาดสมบูรณ์
+    const deleteBtns = captureArea.querySelectorAll('.delete-sign-btn');
+    deleteBtns.forEach(b => b.style.display = 'none');
 
-      setTimeout(() => {
-        handEl.remove();
-        resolve();
-      }, 800);
+    html2canvas(captureArea, { useCORS: true, logging: false, scale: 2 }).then(canvas => {
+      // คืนค่าปุ่มลบกลับมาหลังแคปเจอร์เสร็จ
+      deleteBtns.forEach(b => b.style.display = 'flex');
+
+      const link = document.createElement('a');
+      link.download = 'meadow-safe-space.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
     });
   }
 
-  async function handleLike(entryId, e) {
-    e.stopPropagation();
-    const entry = state.entries.find(en => en.id === entryId);
-    if(entry){
-      entry.likes = (entry.likes || 0) + 1;
-      await saveFieldToCloud();
-      renderField();
-    }
-  }
+  // --- Photo Booth Script (โค้ดดั้งเดิมของคุณแบบ 100%)[cite: 1] ---
+  (function(){
+    const video = document.getElementById('pb-video');
+    const frame = document.getElementById('pb-frame');
+    const canvas = document.getElementById('pb-canvas');
+    const statusEl = document.getElementById('pb-status');
+    const shutterRow = document.getElementById('pb-shutterRow');
+    const shutterBtn = document.getElementById('pb-shutterBtn');
+    const actions = document.getElementById('pb-actions');
+    const retakeBtn = document.getElementById('pb-retakeBtn');
+    const saveBtn = document.getElementById('pb-saveBtn');
+    const shareBtn = document.getElementById('pb-shareBtn');
+    const countdownEl = document.getElementById('pb-countdown');
+    const flashEl = document.getElementById('pb-flash');
+    const captionInput = document.getElementById('pb-captionInput');
+    const textChips = document.querySelectorAll('#pb-textChips .pb-text-chip');
+    const flipBtn = document.getElementById('pb-flipBtn');
+    const captionPreviewEl = document.getElementById('pb-captionPreview');
+    const borderOverlayEl = document.getElementById('pb-borderOverlay');
+    const gridContainer = document.getElementById('pbThemeGrid');
 
-  async function handleDeleteEntry(entryId, e) {
-    e.stopPropagation();
-    state.entries = (state.entries || []).filter(en => en.id !== entryId);
-    await saveFieldToCloud();
-    renderField();
-  }
+    let stream = null;
+    let resultImg = null;   
+    let lastBlob = null;
+    let currentFacingMode = 'user';
+    let activeFrameUrl = "";
 
-  async function handleDeleteSign(questionId, e) {
-    e.stopPropagation();
-    if(!confirm("Are you sure you want to delete this question sign and its post-its?")) return;
-    state.questions = (state.questions || []).filter(q => q.id !== questionId);
-    state.entries = (state.entries || []).filter(en => en.questionId !== questionId);
-    if(selectedQuestionId === questionId) selectedQuestionId = '';
-    await saveFieldToCloud();
-    updateQuestionDropdown();
-    renderField();
-  }
+    const themes = [
+      { id: 1, name: 'ปกติ', url: '' },
+      { id: 2, name: 'น้องเต้าหู้มะระ & น้องพริก', url: 'https://lh3.googleusercontent.com/d/1Pav9xG6iv4470NEEIZzh3dLMvzcs36hT' },
+      { id: 3, name: 'ทักทาย', url: 'https://lh3.googleusercontent.com/d/1F7c0Zv1VSEKQmmoq5kvL1V5I-89PUS5G' },
+      { id: 4, name: 'ไทย๊ไทย', url: 'https://lh3.googleusercontent.com/d/1GTJzzwa5P4SWnwjULJwNJcXip66QaQ48' }
+    ];
 
-  function checkNewEntriesForAlerts(newEntries) {
-    const currentName = $('nameInput').value.trim();
-    const mySigns = state.questions.filter(q => {
-      // Check if any sign was planted by this user or we can just notify on any sign change if user is active
-      return true; 
-    });
-
-    // Count entries per question
-    const counts = {};
-    newEntries.forEach(en => {
-      counts[en.questionId] = (counts[en.questionId] || 0) + 1;
-    });
-
-    for (let qId in counts) {
-      if (previousEntriesCount[qId] !== undefined && counts[qId] > previousEntriesCount[qId]) {
-        const qObj = state.questions.find(q => q.id === qId);
-        const latestEntry = newEntries.filter(en => en.questionId === qId).pop();
-        // Don't alert if I am the one who just posted it
-        if (latestEntry && latestEntry.name !== currentName) {
-          const signTitle = qObj ? qObj.text : 'your sign';
-          showToast(`💬 New post-it on "${signTitle.slice(0, 20)}..."!`);
-        }
-      }
-    }
-    previousEntriesCount = counts;
-  }
-
-  function renderField(){
-    const field = $('field');
-    field.innerHTML = '';
-
-    if(!state.questions || !state.questions.length){
-      const msg = document.createElement('div');
-      msg.className='empty-field-msg';
-      msg.textContent = '🌾 The field is totally quiet — Switch to Creator mode to plant the very first question sign!';
-      field.appendChild(msg);
-      return;
-    }
-
-    state.questions.forEach(q=>{
-      const pos = q.pos || { x: 50, y: 50 };
-
-      const sign = document.createElement('div');
-      sign.className = 'field-sign' + (q.id===selectedQuestionId ? ' selected' : '') + (q._justCreated ? ' bounce-anim' : '');
-      if(q._justCreated) delete q._justCreated;
-
-      sign.style.left = pos.x + '%';
-      sign.style.top = pos.y + '%';
-      sign.innerHTML = `<button class="sign-delete-btn" type="button" title="Delete Sign">×</button><div class="sign-label">Question</div><div class="sign-text"></div>`;
-      sign.querySelector('.sign-text').textContent = q.text;
-      
-      sign.querySelector('.sign-delete-btn').onclick = (e) => handleDeleteSign(q.id, e);
-
-      sign.onclick = (e)=>{
-        e.stopPropagation();
-        selectedQuestionId = q.id;
-        $('questionSelectDropdown').value = q.id;
-        renderAnswerUI();
-        renderField();
-      };
-      field.appendChild(sign);
-
-      const answers = (state.entries || []).filter(e => e.questionId === q.id);
-      if(answers.length > 0){
-        const cluster = document.createElement('div');
-        cluster.className = 'post-it-cluster';
-        cluster.style.left = pos.x + '%';
-        cluster.style.top = (pos.y + 12) + '%';
-        cluster.onclick = (e) => e.stopPropagation();
-
-        answers.forEach(ans=>{
-          const pi = document.createElement('div');
-          pi.className = 'post-it';
-          pi.style.background = ans.color || '#fff9b1';
-          pi.style.transform = `rotate(${ans.rotation || 0}deg)`;
-          
-          const likesCount = ans.likes || 0;
-          let contentHtml = '';
-          
-          contentHtml += `<button class="delete-btn" type="button" title="Delete">🗑️</button>`;
-          contentHtml += `<div>${ans.answer}</div>`;
-          if(ans.image){
-            contentHtml += `<img src="${ans.image}" alt="attached image" />`;
-          }
-          if(ans.extraChat){
-            contentHtml += `<div class="extra-chat">💬 ${ans.extraChat}</div>`;
-          }
-          contentHtml += `<div class="author">${ans.name}</div>`;
-          contentHtml += `<button class="like-btn" type="button">❤️ ${likesCount}</button>`;
-
-          pi.innerHTML = contentHtml;
-          
-          pi.querySelector('.delete-btn').onclick = (e) => handleDeleteEntry(ans.id, e);
-          pi.querySelector('.like-btn').onclick = (e) => handleLike(ans.id, e);
-          cluster.appendChild(pi);
-        });
-        field.appendChild(cluster);
-      }
-    });
-  }
-
-  async function saveFieldToCloud(){
-    if(!db) return false;
-    try {
-      await db.ref('happy_field_main_data').set({
-        questions: state.questions || [],
-        entries: state.entries || []
-      });
-      return true;
-    } catch(err){
-      return false;
-    }
-  }
-
-  function initRealtimeSync(){
-    if(!db) return;
-    const ref = db.ref('happy_field_main_data');
-    ref.on('value', (snapshot) => {
-      const val = snapshot.val();
-      if(val){
-        const newEntries = val.entries || [];
-        checkNewEntriesForAlerts(newEntries);
-        state.questions = val.questions || [];
-        state.entries = newEntries;
+    function applyTheme(frameUrl){
+      activeFrameUrl = frameUrl || "";
+      if(activeFrameUrl){
+        borderOverlayEl.style.backgroundImage = `url('${activeFrameUrl}')`;
+        borderOverlayEl.style.display = "block";
       } else {
-        state.questions = [];
-        state.entries = [];
+        borderOverlayEl.style.display = "none";
+        borderOverlayEl.style.backgroundImage = "";
       }
-      updateQuestionDropdown();
-      renderField();
+    }
+
+    themes.forEach((theme, index) => {
+      const item = document.createElement('div');
+      item.className = `pb-theme-item ${index === 0 ? 'pb-active' : ''}`;
+
+      let thumbInner = '';
+      if(index === 0) {
+        thumbInner = `<div style="width:100%; height:100%; background:#1f2a6b;"></div>`;
+      } else {
+        thumbInner = `<img src="${theme.url}" class="pb-theme-thumb" alt="${theme.name}" crossorigin="anonymous">`;
+      }
+
+      item.innerHTML = `
+        ${thumbInner}
+        <span class="pb-theme-name">${theme.name}</span>
+      `;
+
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.pb-theme-item').forEach(el => el.classList.remove('pb-active'));
+        item.classList.add('pb-active');
+        applyTheme(theme.url);
+      });
+
+      gridContainer.appendChild(item);
     });
-  }
 
-  function loadMyName(){
-    const savedName = localStorage.getItem('happy_thai_name') || '';
-    myChar.name = savedName;
-    $('nameInput').value = savedName;
-  }
+    function updateCaptionPreview(){
+      captionPreviewEl.textContent = captionInput.value || '#CHOBPASATHAI';
+    }
+    updateCaptionPreview();
+    captionInput.addEventListener('input', updateCaptionPreview);
 
-  function setMode(m){
-    mode = m;
-    isPlacingMode = false;
-    $('field').classList.remove('placing-mode');
-    $('btnMember').classList.toggle('active', m==='member');
-    $('btnCreator').classList.toggle('active', m==='creator');
-    $('creatorPanel').style.display = m==='creator' ? 'block' : 'none';
-    $('memberPanel').style.display = m==='member' ? 'block' : 'none';
-  }
+    textChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        textChips.forEach(c => c.classList.remove('pb-active'));
+        chip.classList.add('pb-active');
+        const chipText = chip.getAttribute('data-text');
+        captionInput.value = captionInput.value ? captionInput.value + ' ' + chipText : chipText;
+        updateCaptionPreview();
+      });
+    });
 
-  $('btnMember').onclick = ()=> setMode('member');
-  $('btnCreator').onclick = ()=> setMode('creator');
+    async function startCamera(){
+      try{
+        if(stream) stream.getTracks().forEach(t => t.stop());
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: currentFacingMode, width: { ideal: 1080 }, height: { ideal: 1080 } },
+          audio: false
+        });
+        video.srcObject = stream;
+        video.classList.toggle('pb-mirror', currentFacingMode === 'user');
+        statusEl.textContent = "";
+        shutterBtn.disabled = false;
+        return true;
+      }catch(err){
+        statusEl.textContent = "ไม่สามารถเปิดกล้องได้ — กรุณาอนุญาตสิทธิ์การใช้งานกล้อง";
+        statusEl.classList.add('pb-error');
+        shutterBtn.disabled = true;
+        return false;
+      }
+    }
 
-  $('snapshotBtn').onclick = ()=>{
-    const fieldArea = $('field');
-    html2canvas(fieldArea, { useCORS: true }).then(canvas => {
-      canvas.toBlob(async (blob) => {
-        const file = new File([blob], 'happy-thai-field-snapshot.png', { type: 'image/png' });
-        // Try Web Share API for mobile gallery save/share support
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({
-              files: [file],
-              title: 'Happy Thai field',
-              text: 'Check out our amazing meadow snapshot!'
-            });
-            return;
-          } catch(err) {
-            if (err.name !== 'AbortError') console.error(err);
+    flipBtn.addEventListener('click', async () => {
+      currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+      await startCamera();
+    });
+
+    function countdownThen(fn){
+      const steps = ["3","2","1"];
+      countdownEl.style.display = "flex";
+      let i = 0;
+      const interval = setInterval(() => {
+        if(i < steps.length){
+          countdownEl.textContent = steps[i++];
+        } else {
+          clearInterval(interval);
+          countdownEl.style.display = "none";
+          fn();
+        }
+      }, 600);
+    }
+
+    function doFlash(){
+      flashEl.classList.remove('pb-on');
+      void flashEl.offsetWidth; 
+      flashEl.classList.add('pb-on');
+      for(let i = 0; i < 10; i++){
+        const piece = document.createElement('span');
+        piece.className = 'pb-confetti-piece';
+        piece.textContent = ['✨','🎉','⭐'][Math.floor(Math.random()*3)];
+        piece.style.left = (Math.random() * 90) + '%';
+        frame.appendChild(piece);
+        setTimeout(() => piece.remove(), 1000);
+      }
+    }
+
+    async function capturePhoto(){
+      const vw = video.videoWidth, vh = video.videoHeight;
+      const targetRatio = 1 / 1; 
+      let sx, sy, sw, sh;
+      if (vw / vh > targetRatio){
+        sh = vh; sw = vh * targetRatio; sx = (vw - sw) / 2; sy = 0;
+      } else {
+        sw = vw; sh = vw / targetRatio; sx = 0; sy = (vh - sh) / 2;
+      }
+
+      const PHOTO = 1080;
+      const marginSide   = Math.round(PHOTO * 0.05);
+      const marginBottom = Math.round(PHOTO * 0.24); 
+      const cardW = PHOTO + marginSide * 2;
+      const cardH = marginSide + PHOTO + marginBottom;
+
+      const previewCanvas = document.createElement('canvas');
+      previewCanvas.width = PHOTO;
+      previewCanvas.height = PHOTO;
+      const pctx = previewCanvas.getContext('2d');
+      pctx.save();
+      if(currentFacingMode === 'user'){
+        pctx.translate(PHOTO, 0);
+        pctx.scale(-1, 1);
+      }
+      pctx.drawImage(video, sx, sy, sw, sh, 0, 0, PHOTO, PHOTO);
+      pctx.restore();
+
+      const finalizeCanvas = (themeImageObj) => {
+        canvas.width = cardW;
+        canvas.height = cardH;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, cardW, cardH);
+
+        if(themeImageObj){
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, cardW, cardH);
+          ctx.rect(marginSide, marginSide, PHOTO, PHOTO);
+          ctx.clip("evenodd");
+          ctx.globalAlpha = 0.85;
+          ctx.drawImage(themeImageObj, 0, 0, cardW, cardH);
+          ctx.restore();
+        }
+
+        ctx.drawImage(previewCanvas, marginSide, marginSide, PHOTO, PHOTO);
+
+        const textStartX = marginSide + 10;
+        const textStartY = marginSide + PHOTO + 25;
+        
+        ctx.fillStyle = '#2e3d96';
+        ctx.font = "600 32px 'Bai Jamjuree', sans-serif";
+        ctx.textAlign = "left"; 
+        ctx.textBaseline = "top";
+
+        const lines = (captionInput.value || "#CHOBPASATHAI").split('\n');
+        lines.forEach((line, index) => {
+          ctx.fillText(line, textStartX, textStartY + (index * 42));
+        });
+
+        if(!resultImg){
+          resultImg = document.createElement('img');
+          frame.insertBefore(resultImg, video.nextSibling);
+        }
+        resultImg.src = previewCanvas.toDataURL('image/png');
+
+        canvas.toBlob(blob => { lastBlob = blob; }, 'image/png');
+
+        video.style.display = "none";
+        borderOverlayEl.style.display = "none";
+        resultImg.style.display = "block";
+
+        shutterRow.style.display = "none";
+        actions.classList.add('pb-show');
+        statusEl.textContent = "ถ่ายรูปสำเร็จแล้ว!";
+      };
+
+      if(activeFrameUrl){
+        const tImg = new Image();
+        tImg.crossOrigin = "anonymous";
+        tImg.onload = () => finalizeCanvas(tImg);
+        tImg.onerror = () => finalizeCanvas(null);
+        tImg.src = activeFrameUrl;
+      } else {
+        finalizeCanvas(null);
+      }
+    }
+
+    function retake(){
+      if(resultImg) resultImg.style.display = "none";
+      video.style.display = "block";
+      if(activeFrameUrl) borderOverlayEl.style.display = "block";
+      shutterRow.style.display = "flex";
+      actions.classList.remove('pb-show');
+      statusEl.textContent = "";
+    }
+
+    shutterBtn.addEventListener('click', () => {
+      shutterBtn.disabled = true;
+      countdownThen(async () => {
+        doFlash();
+        await capturePhoto();
+        shutterBtn.disabled = false;
+      });
+    });
+
+    retakeBtn.addEventListener('click', retake);
+    
+    saveBtn.addEventListener('click', () => {
+      if(!lastBlob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(lastBlob);
+      a.download = 'chobpasathai-photobooth.png';
+      a.click();
+    });
+
+    shareBtn.addEventListener('click', async () => {
+      if(!lastBlob) return;
+      const file = new File([lastBlob], 'chobpasathai-photobooth.png', { type: 'image/png' });
+      const shareText = 
+`CHOBPASATHAI Photo Booth
+#CHOBPASATHAI
+รูปโพลารอยด์สุดน่ารักรูปนี้เป็นไงบ้างทุกคน! ✨`;
+
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        try {
+          await navigator.share({
+            title: 'CHOBPASATHAI Photo Booth',
+            text: shareText,
+            files: [file]
+          });
+        } catch(err) {
+          if(err.name !== 'AbortError') {
+            statusEl.textContent = "ไม่สามารถแชร์รูปภาพได้";
           }
         }
-        // Fallback for desktop / standard download
-        const link = document.createElement('a');
-        link.download = 'happy-thai-field-snapshot.png';
-        link.href = URL.createObjectURL(blob);
-        link.click();
-      }, 'image/png');
+      } else if(navigator.share) {
+        try {
+          await navigator.share({
+            title: 'CHOBPASATHAI Photo Booth',
+            text: shareText
+          });
+        } catch(err) {}
+      } else {
+        alert('เบราว์เซอร์นี้ไม่รองรับการแชร์ไฟล์โดยตรง กรุณาใช้ปุ่มบันทึกรูปภาพแทนครับ');
+      }
     });
-  };
 
-  $('placeSignBtn').onclick = ()=>{
-    const q = $('qInput').value.trim();
-    const statusEl = $('creatorStatus');
-    if(!q){ statusEl.textContent = '⚠️ Please type an awesome question first!'; return; }
-
-    const options = $('optionsInput').value.split('\n').map(s=>s.trim()).filter(Boolean);
-    pendingQuestionData = { text: q, options: options };
-
-    isPlacingMode = true;
-    $('field').classList.add('placing-mode');
-    statusEl.textContent = '✨ Placing mode is ON! Now scroll down and click anywhere on the green field.';
-  };
-
-  $('field').addEventListener('click', async (e)=>{
-    if(!isPlacingMode || !pendingQuestionData) return;
-
-    const rect = $('field').getBoundingClientRect();
-    const x = Math.max(10, Math.min(90, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(10, Math.min(90, ((e.clientY - rect.top) / rect.height) * 100));
-
-    const newQ = {
-      id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-      text: pendingQuestionData.text,
-      options: pendingQuestionData.options,
-      pos: { x, y },
-      ts: Date.now(),
-      _justCreated: true
-    };
-
-    if(!state.questions) state.questions = [];
-    state.questions.push(newQ);
-    const ok = await saveFieldToCloud();
-
-    isPlacingMode = false;
-    $('field').classList.remove('placing-mode');
-    $('qInput').value = '';
-    $('optionsInput').value = '';
-    $('creatorStatus').textContent = ok ? '🎉 Boom! Question sign successfully shared!' : '❌ Save failed, please check network!';
-
-    selectedQuestionId = newQ.id;
-    updateQuestionDropdown();
-    renderField();
-  });
-
-  $('dropBtn').onclick = async ()=>{
-    await submitAnswer();
-  };
-
-  (async function init(){
-    renderColorSwatches();
-    loadMyName();
-    setMode('member');
-    initRealtimeSync();
+    startCamera();
   })();
-})();
 </script>
 </body>
 </html>
