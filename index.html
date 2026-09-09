@@ -682,6 +682,12 @@ if ('serviceWorker' in navigator) {
 
   function checkNewEntriesForAlerts(newEntries) {
     const currentName = $('nameInput').value.trim();
+    const mySigns = state.questions.filter(q => {
+      // Check if any sign was planted by this user or we can just notify on any sign change if user is active
+      return true; 
+    });
+
+    // Count entries per question
     const counts = {};
     newEntries.forEach(en => {
       counts[en.questionId] = (counts[en.questionId] || 0) + 1;
@@ -691,6 +697,7 @@ if ('serviceWorker' in navigator) {
       if (previousEntriesCount[qId] !== undefined && counts[qId] > previousEntriesCount[qId]) {
         const qObj = state.questions.find(q => q.id === qId);
         const latestEntry = newEntries.filter(en => en.questionId === qId).pop();
+        // Don't alert if I am the one who just posted it
         if (latestEntry && latestEntry.name !== currentName) {
           const signTitle = qObj ? qObj.text : 'your sign';
           showToast(`💬 New post-it on "${signTitle.slice(0, 20)}..."!`);
@@ -830,6 +837,7 @@ if ('serviceWorker' in navigator) {
     html2canvas(fieldArea, { useCORS: true }).then(canvas => {
       canvas.toBlob(async (blob) => {
         const file = new File([blob], 'happy-thai-field-snapshot.png', { type: 'image/png' });
+        // Try Web Share API for mobile gallery save/share support
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           try {
             await navigator.share({
@@ -842,6 +850,7 @@ if ('serviceWorker' in navigator) {
             if (err.name !== 'AbortError') console.error(err);
           }
         }
+        // Fallback for desktop / standard download
         const link = document.createElement('a');
         link.download = 'happy-thai-field-snapshot.png';
         link.href = URL.createObjectURL(blob);
