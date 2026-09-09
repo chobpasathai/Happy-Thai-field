@@ -303,6 +303,29 @@ textarea{resize:vertical; min-height:50px;}
   pointer-events: none;
 }
 
+/* Notification Toast */
+.toast-alert {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #2c3a26;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-family: 'Baloo 2';
+  font-size: 0.9rem;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  z-index: 1000;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast-alert.show {
+  transform: translateX(-50%) translateY(0);
+}
+
 .empty-field-msg{
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   color:rgba(255,255,255,0.9); font-family:'Baloo 2'; font-weight:700; font-size:1rem;
@@ -394,6 +417,8 @@ textarea{resize:vertical; min-height:50px;}
   <div class="footer-note">🌟 Happy Thai field: Explore around, click any question sign, and leave your colorful mark with friends!</div>
 </div>
 
+<div class="toast-alert" id="toastAlert">🔔 <span id="toastText">Someone replied to your sign!</span></div>
+
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -425,8 +450,36 @@ if ('serviceWorker' in navigator) {
   let selectedQuestionId = null;
   let isPlacingMode = false;
   let pendingQuestionData = null;
+  let previousEntriesCount = {};
 
   const $ = id => document.getElementById(id);
+
+  function playAlertSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch(e) {}
+  }
+
+  function showToast(msg) {
+    const toast = $('toastAlert');
+    $('toastText').textContent = msg;
+    toast.classList.add('show');
+    playAlertSound();
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3500);
+  }
 
   function renderColorSwatches(){
     const container = $('colorSwatches');
@@ -627,6 +680,33 @@ if ('serviceWorker' in navigator) {
     renderField();
   }
 
+  function checkNewEntriesForAlerts(newEntries) {
+    const currentName = $('nameInput').value.trim();
+    const mySigns = state.questions.filter(q => {
+      // Check if any sign was planted by this user or we can just notify on any sign change if user is active
+      return true; 
+    });
+
+    // Count entries per question
+    const counts = {};
+    newEntries.forEach(en => {
+      counts[en.questionId] = (counts[en.questionId] || 0) + 1;
+    });
+
+    for (let qId in counts) {
+      if (previousEntriesCount[qId] !== undefined && counts[qId] > previousEntriesCount[qId]) {
+        const qObj = state.questions.find(q => q.id === qId);
+        const latestEntry = newEntries.filter(en => en.questionId === qId).pop();
+        // Don't alert if I am the one who just posted it
+        if (latestEntry && latestEntry.name !== currentName) {
+          const signTitle = qObj ? qObj.text : 'your sign';
+          showToast(`💬 New post-it on "${signTitle.slice(0, 20)}..."!`);
+        }
+      }
+    }
+    previousEntriesCount = counts;
+  }
+
   function renderField(){
     const field = $('field');
     field.innerHTML = '';
@@ -720,8 +800,10 @@ if ('serviceWorker' in navigator) {
     ref.on('value', (snapshot) => {
       const val = snapshot.val();
       if(val){
+        const newEntries = val.entries || [];
+        checkNewEntriesForAlerts(newEntries);
         state.questions = val.questions || [];
-        state.entries = val.entries || [];
+        state.entries = newEntries;
       } else {
         state.questions = [];
         state.entries = [];
@@ -753,10 +835,27 @@ if ('serviceWorker' in navigator) {
   $('snapshotBtn').onclick = ()=>{
     const fieldArea = $('field');
     html2canvas(fieldArea, { useCORS: true }).then(canvas => {
-      const link = document.createElement('a');
-      link.download = 'happy-thai-field-snapshot.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], 'happy-thai-field-snapshot.png', { type: 'image/png' });
+        // Try Web Share API for mobile gallery save/share support
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'Happy Thai field',
+              text: 'Check out our amazing meadow snapshot!'
+            });
+            return;
+          } catch(err) {
+            if (err.name !== 'AbortError') console.error(err);
+          }
+        }
+        // Fallback for desktop / standard download
+        const link = document.createElement('a');
+        link.download = 'happy-thai-field-snapshot.png';
+        link.href = URL.createObjectURL(blob);
+        link.click();
+      }, 'image/png');
     });
   };
 
